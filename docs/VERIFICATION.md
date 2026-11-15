@@ -11,26 +11,55 @@ Date: **2026-11-15**. Candidate: **0.1.0-alpha.1 development preview**.
 | Regression controls | New UTF-8 archive, archive-size and blank-payee checks failed on the previous implementation and passed after correction. |
 | Real CLI path | Synthetic QIF → destination ZIP, refusal to overwrite, source unchanged, acknowledgement/currency guards tested. |
 | Browser JavaScript path | UMD modules and application event/state logic exercised in a Node VM with an explicit DOM double. This is not a rendered browser. |
+| Hosted Node matrix | All four Windows/Linux Node 22/24 jobs passed on the published browser-qualification candidate. |
+| Real browser workflow | Windows Chrome, Windows Edge and Linux Chromium passed the existing headless offline workflow, including an actual ZIP download and validation. |
 | ZIP structure | Deterministic bytes, known CRC vector, central directory, unsafe path/collision rejection checked. |
 | Large archive / independent ZIP reader | A 9,450,011-byte fictional QIF produced 34,746,929-byte JSON; CLI reopened it and exported all 15,000 transactions with exact -15000.00 total. Python zipfile verified every entry CRC and original source text. |
 | Financial scope | Separate accounts, exact debit/refund signs, both split modes, source/export sums, transfer references and duplicate retention checked. |
 | Archive integrity | Reparse comparison detects removed errors, omitted or altered financial records; UTF-8 non-ASCII regression checked. |
 | Independent review | Distinct non-author functional and security reviewers identified issues; corrections applied. Final review receipts accompany the candidate handoff. |
 
-Local runtime: Linux, Node v24.22.1, Python 3.12.14. The optional Python browser
-script passed syntax compilation; its browser checks did not execute here.
+Local runtime: Linux, Node v24.22.1, Python 3.12.14. Browser checks could not
+execute in the authoring environment because Chromium could not start and the
+cloud browser did not permit local-file URLs. The separate hosted CI run below
+subsequently supplied actual browser evidence without changing the application.
+
+## Hosted CI and browser receipt
+
+Published candidate: `65b132ef8438e231b720e18e54abf82d0817982a`.
+[GitHub Actions run 43776136220](https://github.com/scoobydont-666/quicken-migrate/actions/runs/43776136220)
+completed with **success: all seven jobs passed** on 2026-11-15.
+
+| Job | Result | Observed browser version |
+|---|---|---|
+| Ubuntu / Node 22 | PASS | N/A |
+| Ubuntu / Node 24 | PASS | N/A |
+| Windows / Node 22 | PASS | N/A |
+| Windows / Node 24 | PASS | N/A |
+| Ubuntu 24.04 / Chromium | PASS | 151.0.7922.34 |
+| Windows / Chrome | PASS | 156.0.8078.80 |
+| Windows / Edge | PASS | 156.0.4314.58 |
+
+Browser jobs used Playwright 1.62.0 and Python 3.12. Each printed an explicit
+`PASS` receipt after opening local `index.html` with the context offline,
+loading the fictional demo, downloading and verifying ZIP CRCs and exact totals,
+checking acknowledgement reset, clearing the workspace, reopening the JSON
+archive, and blocking malformed transaction exports. No HTTP requests or page
+errors were observed by the script. These are real headless browser checks,
+not manual visual or accessibility acceptance and not destination imports.
+
+The first source publication also passed its four-job Node matrix in
+[run 43775771569](https://github.com/scoobydont-666/quicken-migrate/actions/runs/43775771569).
+The subsequent browser workflow change received separate non-author correctness
+and security review. Its reviewed blob is
+`e10a008b554a41810a2a708da7ce7d119e6460c8`; runtime and browser-test code were
+unchanged from the independently reviewed implementation.
 
 ## Explicitly unverified gates
 
-- **Actual rendered browser / Windows Chrome and Edge: NOT_RUN.** The local
-  Playwright browser package was missing; system Chromium could not start because
-  the execution environment denied its Unix socket. A cloud-browser attempt to
-  open the local application was rejected by its URL policy. These restrictions
-  were not bypassed. Browser rendering/download behavior remains unproven.
-- **Hosted CI: PENDING INITIAL RUN.** The workflow is configured for Windows/Linux
-  Node 22/24. Consult the [public Actions runs](https://github.com/scoobydont-666/quicken-migrate/actions)
-  for results associated with the published commit; no hosted result is claimed
-  by this pre-publication evidence record.
+- **Manual browser acceptance: NOT_RUN.** Headless checks do not establish
+  visual layout, native file-dialog interaction, keyboard-only usability,
+  screen-reader behavior or behavior under managed desktop policies.
 - **Live destination imports: NOT_RUN.** No Simplifi, Business & Personal web,
   Monarch, YNAB, Actual or GnuCash account was changed.
 - **Real Quicken installation/export fixture: NOT_RUN.** Grammar and destination
@@ -53,8 +82,8 @@ python scripts/browser_check.py --channel msedge
 
 The script opens local `index.html` with network disabled, exercises fictional
 data, inspects the actual ZIP and tests blocked-input behavior. It requires the
-Playwright package; the authoring environment provided version 1.62.0, but could
-not launch a browser. Record the exact package/browser versions used. A browser
+Playwright package; CI pins version 1.62.0. Record the exact package/browser
+versions used when rerunning. A browser
 launch failure is NOT_RUN, never PASS. Also manually check narrow layouts,
 keyboard navigation, file dialogs and non-ASCII category/account names.
 
@@ -72,14 +101,14 @@ Independent review receipts accompany the source package.
 
 Use the complete source checkout or ZIP, retaining its LICENSE, documentation,
 tests and fictional fixture. Do not add migration outputs or personal records.
-Keep the release marked as a preview until browser and destination qualification
-are recorded. Source publication is not a production release.
+Keep the release marked as a preview until manual browser, real-source and
+destination qualification are recorded. Source publication is not a production release.
 
 ## Applicability of the release checklist
 
 | Area | Status / reason |
 |---|---|
-| Scope and tests | Core conversion slice implemented and locally tested; end-user destination acceptance pending. |
+| Scope and tests | Core conversion slice implemented; local and hosted automated gates passed; end-user destination acceptance pending. |
 | Error handling and integrity | Blocking errors and preservation tested; no silent guessed account assignment. |
 | Security | No credentials/network/data service; text/CSV/archive and bounds inspected and tested. |
 | Deployment, daemon restart, ports, fleet hosts | N/A: static file application and optional one-shot CLI, no service deployment requested. |
@@ -87,7 +116,8 @@ are recorded. Source publication is not a production release.
 | Financial observability | Local counts, source/export net movements, issue positions and fidelity report implemented. |
 | Performance | Resource limits tested; no claimed large-history browser latency benchmark. |
 | Independent source review | Separate functional/security review; exact-source final receipts supplied at handoff. |
-| Hosted CI and production adoption | Pending; local success does not stand in for those gates. |
+| Hosted CI | Seven jobs passed on the linked published candidate, including three real browsers. |
+| Production adoption | Pending manual browser, real-source and destination acceptance; automated success does not stand in for those gates. |
 
 Never close the overall release task merely because source is committed or a
 preview ZIP exists. Never import into a real destination to satisfy a test gate.

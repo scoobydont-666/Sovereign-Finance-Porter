@@ -11,8 +11,10 @@ It also creates a destination-neutral archive and preserves the original QIF
 text for native import into applications such as GnuCash.
 
 **Status: development preview, 0.1.0-alpha.1.** Conversion, archive integrity,
-CLI behavior and browser orchestration have automated tests. Rendered browser
-qualification and actual destination imports remain release gates. See
+CLI behavior and browser orchestration have automated tests. Scripted headless
+checks pass in Windows Chrome, Windows Edge and Linux Chromium. Manual visual
+and accessibility review, real Quicken fixtures and actual destination imports
+remain release gates. See
 [verification evidence](docs/VERIFICATION.md). Do not treat a locally generated
 CSV as proof that a destination accepted it correctly.
 
@@ -32,9 +34,10 @@ styles from the same folder. No source data is uploaded or stored in browser
 persistent storage. Closing or clearing the tab releases its workspace; files
 you deliberately downloaded remain on your computer.
 
-The intended desktop clients are Windows Chrome and Edge. They still need an
-actual platform qualification; the Node browser-state tests are not rendering
-tests. Browser policies managed by an employer may restrict local HTML files.
+Windows Chrome and Edge passed the scripted local-file and download workflow
+on hosted Windows runners. These headless checks complement the Node browser-state
+tests; they do not establish manual visual or accessibility acceptance.
+Browser policies managed by an employer may restrict local HTML files.
 
 ## Export from Quicken Classic
 

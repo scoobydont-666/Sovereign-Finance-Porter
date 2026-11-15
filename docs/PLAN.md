@@ -21,13 +21,18 @@ data is needed to develop or test it.
 | A6 | Duplicates and unmatched transfers are flagged without invented changes | Targeted tests. |
 | A7 | Archive round trip rejects inconsistent records and preserves non-ASCII text | Canonical and browser-state tests. |
 | A8 | No runtime network/persistent storage; text cannot execute; output cannot overwrite | Static guard, CSV/ZIP/CLI and browser-state tests. |
-| A9 | A Windows user can open the app and download a valid kit offline | Intended workflow implemented; real Chrome/Edge qualification pending. |
+| A9 | A Windows user can open the app and download a valid kit offline | Real headless Chrome/Edge local-file and ZIP-download checks passed in hosted CI; manual desktop review remains. |
 | A10 | A disposable destination accepts a synthetic kit with correct balances/classification | Explicitly pending per destination. |
 
 ## Phase 1 — Public preview and destination qualification
 
 The implemented slice is QIF → strict canonical archive → local review → CSV or
 original-QIF kit. Before a public release tag:
+
+Source review and the Windows/Linux Node 22/24 matrix passed. Scripted headless
+browser checks also passed on Windows Chrome, Windows Edge and Linux Chromium;
+see [the exact run receipt](VERIFICATION.md#hosted-ci-and-browser-receipt).
+The manual and destination checks below remain required before release.
 
 1. Finish independent source reviews on the exact candidate and resolve blockers.
 2. Run `npm run check` on Windows/Linux Node 22/24 in the new public repository.
