@@ -1,0 +1,17 @@
+{
+  "name": "sovereign-finance-porter",
+  "version": "0.1.0-alpha.1",
+  "description": "Offline, loss-aware migration from Quicken QIF to portable archives and financial-app import files.",
+  "private": true,
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/scoobydont-666/quicken-migrate.git"
+  },
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "test": "node scripts/test.js",
+    "check": "node scripts/check.js",
+    "demo": "node cli.js examples/fictional-household.qif --currency USD --target simplifi --out demo-migration.zip --acknowledge-losses"
+  }
+}

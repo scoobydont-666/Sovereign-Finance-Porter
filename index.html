@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'none'; img-src data:; base-uri 'none'; form-action 'none'; object-src 'none'">
+  <meta name="description" content="Move Quicken transaction history into an open archive and other finance apps, entirely on your computer.">
+  <title>Sovereign Finance Porter · Your history, your choice</title>
+  <link rel="stylesheet" href="styles.css">
+  <script defer src="core/model.js"></script>
+  <script defer src="core/qif.js"></script>
+  <script defer src="core/exporters.js"></script>
+  <script defer src="core/zip.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to migration workspace</a>
+  <header class="site-header">
+    <a class="brand" href="#main" aria-label="Sovereign Finance Porter home">
+      <span class="brand-mark" aria-hidden="true">P<span>↗</span></span>
+      <span><span class="brand-family">SOVEREIGN FINANCE</span><strong>Porter</strong></span>
+    </a>
+    <div class="header-meta"><span class="local-badge"><span aria-hidden="true"></span> On your computer</span><span class="version">Preview · 0.1</span></div>
+  </header>
+
+  <div class="workspace">
+    <aside class="sidebar" aria-label="Migration navigation and privacy">
+      <p class="eyebrow">MIGRATION WORKSPACE</p>
+      <nav aria-label="Migration steps">
+        <a class="step-link current" href="#source" id="nav-source" aria-current="step"><span class="step-number">1</span><span>Bring your history<small>Choose a local export</small></span></a>
+        <a class="step-link" href="#review" id="nav-review"><span class="step-number">2</span><span>Review the details<small>Check what will move</small></span></a>
+        <a class="step-link" href="#destination" id="nav-destination"><span class="step-number">3</span><span>Make your move<small>Download your migration kit</small></span></a>
+      </nav>
+      <div class="privacy-card">
+        <span class="privacy-icon" aria-hidden="true">↳</span>
+        <h2>Your history stays yours.</h2>
+        <p>Your files are processed in this browser tab. No upload, account, analytics, or bank connection.</p>
+        <p class="muted">Downloads contain private financial data. Keep them somewhere secure.</p>
+      </div>
+      <div class="sidebar-bottom"><span class="status-dot" aria-hidden="true"></span> Works offline after download</div>
+    </aside>
+
+    <main id="main" tabindex="-1">
+      <section class="intro" aria-labelledby="page-title">
+        <div><p class="eyebrow">A FRESH START. THE SAME HISTORY.</p><h1 id="page-title">Move your history<br><span>forward.</span></h1><p class="intro-copy">Bring your Quicken Classic transactions to your next finance app, with an open archive you can keep.</p></div>
+        <div class="intro-note"><span class="intro-note-icon" aria-hidden="true">↗</span><span>Built for a choice<br>of destinations.</span></div>
+      </section>
+
+      <div id="app-status" class="status-line" role="status" aria-live="polite">Ready when you are. Start with a QIF export from Quicken Classic.</div>
+      <div id="app-error" class="notice error" role="alert" hidden></div>
+      <div id="demo-banner" class="notice demo" hidden><strong>Fictional demo</strong> These sample records show how the workflow behaves. Clear the workspace before loading your own export.</div>
+
+      <section class="panel" id="source" aria-labelledby="source-heading">
+        <div class="section-heading"><div><p class="eyebrow">STEP 01</p><h2 id="source-heading">Bring your history</h2></div><button id="clear-button" class="text-button" type="button" disabled>Clear workspace</button></div>
+        <div class="drop-zone" id="drop-zone">
+          <div class="file-glyph" aria-hidden="true"><span>↥</span></div>
+          <h3 id="file-title">Choose your Quicken export</h3>
+          <p id="file-description">Drop a .qif file here, or select one from your computer.</p>
+          <label class="button primary browse-button" for="source-file">Choose a file</label>
+          <input id="source-file" class="visually-hidden" type="file" accept=".qif,.json" aria-describedby="file-description file-help">
+          <p class="file-help" id="file-help">QIF up to 25 MiB · Porter JSON archive up to 100 MiB · one file at a time</p>
+        </div>
+        <div class="source-options">
+          <label class="field"><span>Date order in your QIF</span><select id="date-order"><option value="mdy">Month / day / year (US)</option><option value="dmy">Day / month / year</option></select><small>Choose the format used by the export.</small></label>
+          <label class="field"><span>QIF text encoding</span><select id="encoding"><option value="utf-8">UTF-8</option><option value="windows-1252">Windows-1252 (older Windows exports)</option></select><small>JSON archives always use UTF-8.</small></label>
+          <label class="field wide"><span>Account name for an unnamed export</span><input id="account-name" type="text" value="Imported account" maxlength="200" autocomplete="off" spellcheck="false"><small>Used only when the QIF has no account name. Named accounts keep their names.</small></label>
+        </div>
+        <label class="checkbox-row currency-confirm"><input id="currency-confirm" type="checkbox"><span>This export is in <strong>US dollars (USD)</strong>. QIF does not reliably identify currency; Porter does not convert currencies.</span></label>
+        <div class="action-row"><button class="button primary" type="button" id="read-button" disabled>Read export <span aria-hidden="true">→</span></button><button class="button secondary" type="button" id="demo-button">Try a fictional example</button></div>
+        <details class="help-details"><summary>How do I export from Quicken Classic?</summary><div><p>In Quicken Classic for Windows, open <strong>File → File Export → QIF file</strong>. Choose an account and the full date range you want to move. Include <strong>Transactions</strong>, <strong>Account List</strong>, and <strong>Category List</strong> where available. Save the export locally, then choose it here.</p><p>Keep your original Quicken backup. A <strong>.QDF</strong> database or <strong>.QXF</strong> transfer file is not a QIF export and cannot be opened here. For an unnamed, single-account export, enter its name above.</p><p>This preview normalizes supported banking, credit-card, cash, asset, and liability transaction records. Investment and other unsupported records are retained in the archive and reported separately. Attachments, budgets, schedules, settings, and complete investment tax lots are outside this transaction migration.</p></div></details>
+      </section>
+
+      <section class="panel" id="review" aria-labelledby="review-heading">
+        <div class="section-heading"><div><p class="eyebrow">STEP 02</p><h2 id="review-heading" tabindex="-1">Review the details</h2></div><span class="section-tag" id="review-tag">Waiting for a file</span></div>
+        <div id="review-empty" class="empty-state"><span aria-hidden="true">≋</span><p>See your accounts, transaction totals, and anything that needs attention before exporting.</p></div>
+        <div id="review-content" hidden>
+          <div class="stats-grid"><div class="stat"><span>Accounts</span><strong id="stat-accounts">0</strong></div><div class="stat"><span>Transactions read</span><strong id="stat-transactions">0</strong></div><div class="stat"><span>Records archived separately</span><strong id="stat-unsupported">0</strong></div></div>
+          <h3>Accounts in this export</h3>
+          <p class="table-caption">Net activity is the sum of exported transactions. <strong>It is not an account balance.</strong> Check each account against your source register.</p>
+          <div class="table-scroll"><table><thead><tr><th scope="col">Account</th><th scope="col">Type</th><th scope="col" class="numeric">Transactions</th><th scope="col" class="numeric">Net activity · USD</th></tr></thead><tbody id="accounts-body"></tbody></table></div>
+          <div id="issues-section" class="issues-section" hidden><h3>Review notes</h3><ul id="issues-list" class="issue-list"></ul></div>
+          <div class="table-heading"><h3>Transaction preview</h3><span class="muted" id="preview-range"></span></div>
+          <div class="table-scroll"><table class="transactions-table"><thead><tr><th scope="col">Date</th><th scope="col">Payee</th><th scope="col">Account</th><th scope="col">Category / transfer</th><th scope="col" class="numeric">Amount · USD</th></tr></thead><tbody id="transactions-body"></tbody></table></div>
+          <div class="pagination"><span class="muted">Split parents appear once here; export treatment is selected below.</span><div><button id="previous-page" class="button small secondary" type="button">Previous</button><button id="next-page" class="button small secondary" type="button">Next</button></div></div>
+        </div>
+      </section>
+
+      <section class="panel" id="destination" aria-labelledby="destination-heading">
+        <div class="section-heading"><div><p class="eyebrow">STEP 03</p><h2 id="destination-heading">Make your move</h2></div><span class="section-tag">You stay in control</span></div>
+        <fieldset id="destination-controls" disabled><legend class="visually-hidden">Destination and export options</legend>
+          <div class="destination-grid"><label class="field"><span>Where would you like to go?</span><select id="target-select"></select></label><label class="field"><span>How should split transactions travel?</span><select id="split-mode"><option value="flatten">Separate rows for each split</option><option value="preserve">One parent row, split details in notes</option></select></label></div>
+          <p id="target-description" class="target-description"></p>
+          <div class="notice info"><strong>An archive travels with you.</strong> Every kit includes a portable record of your data, the original source, and a migration report. Destination files have the limitations listed below.</div>
+          <div id="export-summary" class="export-summary" hidden><div class="export-counts"><div><span>Source transactions</span><strong id="summary-source">0</strong></div><span aria-hidden="true">→</span><div><span>Destination rows</span><strong id="summary-rows">0</strong></div><div><span>Net activity · USD</span><strong id="summary-net">0.00</strong></div></div><p id="summary-text"></p></div>
+          <div id="export-blocked" class="notice error" hidden></div>
+          <div id="warnings-section" hidden><h3>What to check at your destination</h3><ul class="issue-list destination-warnings" id="warnings-list"></ul></div>
+          <details class="help-details" id="files-details" hidden><summary id="files-heading">Files in your migration kit</summary><ul id="files-list" class="file-list"></ul></details>
+          <label class="checkbox-row export-confirm"><input id="export-confirm" type="checkbox"><span>I reviewed the account totals, unsupported records, and destination warnings. I will verify the import before relying on it.</span></label>
+          <div class="action-row"><button id="download-button" class="button primary" type="button" disabled>Download migration kit <span aria-hidden="true">↓</span></button><span class="download-note">A ZIP file saved to your computer.<br>No connection to your destination app.</span></div>
+        </fieldset>
+        <div class="companion-note"><strong>Looking for Quicken on the Web?</strong><p>That is a companion to Quicken Classic and uses Classic’s synchronization. It is not a standalone database-import destination. Quicken Simplifi and Quicken Business &amp; Personal web have separate CSV paths.</p></div>
+      </section>
+      <footer class="main-footer"><span>Sovereign Finance Porter · development preview</span><span>Independent software. Not affiliated with Quicken or the listed destinations.</span></footer>
+    </main>
+  </div>
+  <noscript><p class="notice error">JavaScript is required to process files locally. No files are uploaded.</p></noscript>
+</body>
+</html>

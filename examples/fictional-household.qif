@@ -1,0 +1,95 @@
+!Type:Cat
+NSalary
+I
+^
+NFood:Groceries
+E
+^
+NHousehold
+E
+^
+!Account
+NExample Checking
+TBank
+^
+!Type:Bank
+D01/01/2026
+T1000.00
+POpening Balance
+L[Example Checking]
+C*
+^
+D01/02/2026
+T2500.00
+PExample Employer
+LSalary
+CX
+^
+D01/03/2026
+T-83.47
+PExample Market
+MWeekly shop
+SFood:Groceries/Family
+EProduce and pantry
+$-63.47
+SHousehold
+ECleaning supplies
+$-20.00
+^
+D01/04/2026
+T-500.00
+PTransfer to savings
+L[Example Savings]
+^
+D01/05/2026
+T-150.00
+PCard payment
+L[Example Card]
+^
+!Account
+NExample Savings
+TBank
+^
+!Type:Bank
+D01/04/2026
+T500.00
+PTransfer from checking
+L[Example Checking]
+^
+!Account
+NExample Card
+TCCard
+^
+!Type:CCard
+D01/05/2026
+T150.00
+PCard payment
+L[Example Checking]
+^
+D01/06/2026
+T-42.10
+PExample Store
+LHousehold
+^
+D01/07/2026
+T5.25
+PExample Store refund
+LHousehold
+^
+!Type:Security
+NExample Index Fund
+SEXAMPLE
+TMutual Fund
+^
+!Account
+NExample Brokerage
+TInvst
+^
+!Type:Invst
+D01/08/2026
+NBuy
+YExample Index Fund
+I100.00
+Q2
+T200.00
+^
