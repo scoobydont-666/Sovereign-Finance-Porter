@@ -1,6 +1,6 @@
 # Sovereign Finance Porter
 
-Public repository: [quicken-migrate](https://github.com/scoobydont-666/quicken-migrate).
+Public repository: [Soveriegn-Finance-Porter](https://github.com/scoobydont-666/Soveriegn-Finance-Porter).
 
 **Move your financial history. Keep the original. Choose your next app.**
 

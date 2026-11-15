@@ -63,17 +63,26 @@ def main():
             archive = temp / "portable-book.json"
             archive.write_bytes(canonical)
             page.locator("#encoding").select_option("windows-1252")
+            expect(page.locator("#source-file")).to_be_enabled()
             page.locator("#source-file").set_input_files(archive)
+            expect(page.locator("#file-title")).to_have_text(archive.name)
             page.locator("#currency-confirm").check()
             page.locator("#read-button").click()
+            # A hidden counter can still contain the previous preview's value.
+            # Wait for this read to finish before asserting it or selecting a new file.
+            expect(page.locator("#read-button")).to_have_attribute("aria-busy", "false")
+            expect(page.locator("#review-content")).to_be_visible()
             expect(page.locator("#stat-transactions")).to_have_text("7")
             expect(page.locator("#app-error")).not_to_be_visible()
 
             broken = temp / "fictional-broken.qif"
             broken.write_text("!Type:Bank\nD2/30/2026\nT-10.00\nPExample\n^\n", encoding="utf-8")
+            expect(page.locator("#source-file")).to_be_enabled()
             page.locator("#source-file").set_input_files(broken)
+            expect(page.locator("#file-title")).to_have_text(broken.name)
             page.locator("#currency-confirm").check()
             page.locator("#read-button").click()
+            expect(page.locator("#read-button")).to_have_attribute("aria-busy", "false")
             expect(page.locator("#export-blocked")).to_be_visible()
             expect(page.locator("#download-button")).to_be_disabled()
             page.locator("#target-select").select_option("archive")

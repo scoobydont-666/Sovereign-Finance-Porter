@@ -27,7 +27,7 @@ subsequently supplied actual browser evidence without changing the application.
 ## Hosted CI and browser receipt
 
 Published candidate: `65b132ef8438e231b720e18e54abf82d0817982a`.
-[GitHub Actions run 43776136220](https://github.com/scoobydont-666/quicken-migrate/actions/runs/43776136220)
+[GitHub Actions run 43776136220](https://github.com/scoobydont-666/Soveriegn-Finance-Porter/actions/runs/43776136220)
 completed with **success: all seven jobs passed** on 2026-11-15.
 
 | Job | Result | Observed browser version |
@@ -49,11 +49,21 @@ errors were observed by the script. These are real headless browser checks,
 not manual visual or accessibility acceptance and not destination imports.
 
 The first source publication also passed its four-job Node matrix in
-[run 43775771569](https://github.com/scoobydont-666/quicken-migrate/actions/runs/43775771569).
+[run 43775771569](https://github.com/scoobydont-666/Soveriegn-Finance-Porter/actions/runs/43775771569).
 The subsequent browser workflow change received separate non-author correctness
 and security review. Its reviewed blob is
 `e10a008b554a41810a2a708da7ce7d119e6460c8`; runtime and browser-test code were
-unchanged from the independently reviewed implementation.
+unchanged in that initial qualifying run.
+
+A later documentation-only rerun, run 43776429913, passed six jobs but exposed a
+Linux timing race in the browser test: a hidden transaction counter still held
+the prior value while the archive read was pending, allowing the test to attempt
+another file selection while the input was disabled. The harness now waits for
+the read's `aria-busy=false` and a visible preview, requires the file input to be
+enabled, and verifies each newly selected filename. The original malformed-input
+assertion remains in place. Application behavior is unchanged. Use the current
+[Actions runs](https://github.com/scoobydont-666/Soveriegn-Finance-Porter/actions)
+to check the qualification result for the corrected harness.
 
 ## Explicitly unverified gates
 
@@ -89,7 +99,7 @@ keyboard navigation, file dialogs and non-ASCII category/account names.
 
 ## Public repository handoff
 
-Public repository: [scoobydont-666/quicken-migrate](https://github.com/scoobydont-666/quicken-migrate).
+Public repository: [scoobydont-666/Soveriegn-Finance-Porter](https://github.com/scoobydont-666/Soveriegn-Finance-Porter).
 The repository owner's initial Apache 2.0 license is retained. The application
 name remains Sovereign Finance Porter, and it has no private-suite dependency.
 
