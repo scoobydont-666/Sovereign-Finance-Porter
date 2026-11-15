@@ -26,3 +26,34 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
       - run: npm run check
+  browser:
+    name: Browser (${{ matrix.os }} / ${{ matrix.browser }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            browser: chromium
+            arguments: ''
+          - os: windows-latest
+            browser: chrome
+            arguments: '--channel chrome'
+          - os: windows-latest
+            browser: msedge
+            arguments: '--channel msedge'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+      - name: Install browser test dependency
+        run: python -m pip install --disable-pip-version-check playwright==1.62.0
+      - name: Install Chromium and Linux dependencies
+        if: runner.os == 'Linux'
+        run: python -m playwright install --with-deps chromium
+      - name: Qualify the offline application
+        run: python scripts/browser_check.py ${{ matrix.arguments }}
