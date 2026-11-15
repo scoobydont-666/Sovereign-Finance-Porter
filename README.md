@@ -1,6 +1,6 @@
 # Sovereign Finance Porter
 
-Public repository: [Soveriegn-Finance-Porter](https://github.com/scoobydont-666/Soveriegn-Finance-Porter).
+Public repository: [Sovereign-Finance-Porter](https://github.com/scoobydont-666/Soveriegn-Finance-Porter).
 
 **Move your financial history. Keep the original. Choose your next app.**
 
