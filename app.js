@@ -250,7 +250,6 @@
       let text;
       try { text = new TextDecoder(encoding, {fatal:true}).decode(buffer); }
       catch { throw new Error('The file could not be decoded as UTF-8. For an older Windows QIF export, choose Windows-1252 and read it again.'); }
-      if (text.includes('\u0000')) throw new Error('This file contains binary or unsupported text encoding. Export a plain-text QIF file from Quicken Classic.');
       if (file.name.toLowerCase().endsWith('.json')) {
         let parsed;
         try { parsed = JSON.parse(text); }

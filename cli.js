@@ -4,12 +4,12 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { parseQif } = require('./core/qif.js');
-const { validateBook } = require('./core/model.js');
+const { validateBook, VERSION } = require('./core/model.js');
 const { analyze, planExport, targets } = require('./core/exporters.js');
 const { makeZip } = require('./core/zip.js');
 
 function help() {
-  return `Sovereign Finance Porter 0.1.0-alpha.1 — offline financial data conversion
+  return `Sovereign Finance Porter ${VERSION} — offline financial data conversion
 
 Usage: node cli.js SOURCE.qif [options]
        node cli.js portable-book.json [options]

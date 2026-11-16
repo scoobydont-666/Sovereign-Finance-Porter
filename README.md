@@ -1,6 +1,6 @@
 # Sovereign Finance Porter
 
-Public repository: [Sovereign-Finance-Porter](https://github.com/scoobydont-666/Soveriegn-Finance-Porter).
+Public repository: [Sovereign-Finance-Porter](https://github.com/scoobydont-666/Sovereign-Finance-Porter).
 
 **Move your financial history. Keep the original. Choose your next app.**
 
@@ -10,7 +10,7 @@ web compatibility profile, Monarch Money, YNAB, Actual Budget, and other softwar
 It also creates a destination-neutral archive and preserves the original QIF
 text for native import into applications such as GnuCash.
 
-**Status: development preview, 0.1.0-alpha.1.** Conversion, archive integrity,
+**Status: development preview, 0.1.0-alpha.2.** Conversion, archive integrity,
 CLI behavior and browser orchestration have automated tests. Scripted headless
 checks pass in Windows Chrome, Windows Edge and Linux Chromium. Manual visual
 and accessibility review, real Quicken fixtures and actual destination imports
@@ -52,6 +52,21 @@ text interchange format that Classic exports. Quicken's own [export guide](https
 describes the source workflow. A QIF export may omit data from your original
 database; retaining QIF is not a substitute for retaining the QDF backup.
 
+### If a fresh export reports a control character
+
+Alpha2 accepts one terminal Windows Ctrl-Z (`U+001A`) after the last complete
+QIF record, with optional ASCII spaces, tabs or line breaks around the marker.
+The review discloses `LEGACY_DOS_EOF`, and the archive retains the complete
+original decoded source, including that marker. This is a Windows text-file
+convention; it is not evidence that every Quicken export uses it.
+
+Other unsupported controls now report their Unicode code and original line and
+column, without printing transaction content. Embedded or repeated Ctrl-Z,
+binary content and unfinished records still require attention. Keep the source
+unchanged; report the code and position when troubleshooting. QIF size errors
+separately identify the 25 MiB limit. UTF-8 and Windows-1252 remain explicit
+encoding choices.
+
 ## What this preview does
 
 - Parses banking, credit-card, cash, asset and liability QIF transactions.
@@ -83,7 +98,7 @@ account deletion, subscription cancellation or transaction creation is performed
 | Actual Budget | Mappable per-account CSV | Pre-create/map categories; review duplicate matching and transfers. |
 | Portable CSV | date, payee, amount, category | ISO dates, signed amounts; richer metadata remains in JSON. |
 | GnuCash / native QIF | Original QIF text and checklist | Use the destination's native QIF wizard; no reconstructed investment or tax-lot claims. |
-| Portable archive | JSON, original QIF text, reports | Can be reopened by this exact preview version without editing. |
+| Portable archive | JSON, original QIF text, reports | Alpha2 also reopens alpha1 archives, upgrading generator metadata while revalidating all retained data. |
 
 The current Quicken help pages disagree on four versus seven CSV columns and
 date formatting. Porter deliberately exposes separate profiles and records the

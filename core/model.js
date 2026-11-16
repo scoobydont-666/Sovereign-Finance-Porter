@@ -12,7 +12,7 @@
   const MAX_ACCOUNTS = 1000;
   const MAX_LIST_ENTRIES = 20000;
   const MAX_FIELD_LENGTH = 65536;
-  const VERSION = "0.1.0-alpha.1";
+  const VERSION = "0.1.0-alpha.2";
 
   function fail(message) {
     throw new Error(message);
@@ -23,6 +23,50 @@
       fail(label + " must be bounded plain text without binary control characters.");
     }
     return value;
+  }
+
+  // QIF exports can end with the Windows text-mode EOF marker. Recognize one
+  // marker only after a complete caret record; never truncate at an embedded
+  // marker or relax validation of financial fields. The caller archives value,
+  // while parseText is the view used to read records.
+  function qifSource(value) {
+    if (typeof value !== "string") fail("QIF source must be a text string.");
+    if (value.length > MAX_SOURCE_BYTES || new TextEncoder().encode(value).byteLength > MAX_SOURCE_BYTES) {
+      fail("QIF source exceeds the 25 MiB limit. Export a smaller account or date range.");
+    }
+    const eof = value.lastIndexOf("\u001a");
+    const legacyEof = eof !== -1 && /^[ \t\r\n]*$/u.test(value.slice(eof + 1)) &&
+      /(?:^|[\r\n])[ \t]*\^[ \t\r\n]*$/u.test(value.slice(0, eof));
+    const control = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/u.exec(value);
+    if (control && (!legacyEof || control.index !== eof)) {
+      let line = 1, column = 1;
+      // Positions refer to original decoded text: CRLF is one newline and an
+      // astral Unicode character is one column. Do not echo financial content.
+      for (let index = 0; index < control.index; index++) {
+        if (value[index] === "\r") {
+          line++; column = 1;
+          if (value[index + 1] === "\n") index++;
+        } else if (value[index] === "\n") { line++; column = 1; }
+        else {
+          column++;
+          if (value.codePointAt(index) > 0xffff) index++;
+        }
+      }
+      const code = control[0].charCodeAt(0).toString(16).toUpperCase().padStart(4, "0");
+      fail("QIF source contains unsupported control character U+" + code + " at line " + line + ", column " + column +
+        ". Verify the text encoding or export plain-text QIF from Quicken Classic. The source has not been changed.");
+    }
+    let parseEnd = eof;
+    if (legacyEof) {
+      // Scan backwards once. An unanchored whitespace-plus-end regex can retry
+      // at every space in an interior field and stall on otherwise valid QIF.
+      while (parseEnd > 0) {
+        const code = value.charCodeAt(parseEnd - 1);
+        if (code !== 32 && code !== 9 && code !== 10 && code !== 13) break;
+        parseEnd--;
+      }
+    }
+    return { parseText: legacyEof ? value.slice(0, parseEnd) : value, legacyEof };
   }
 
   // Only the explicitly supported USD decimal syntax is accepted. Never infer a
@@ -157,7 +201,7 @@
     object(book, ["schemaVersion", "generator", "currency", "dateOrder", "sources", "accounts", "categories", "securities", "transactions", "unsupportedRecords", "issues"], "Archive");
     if (book.schemaVersion !== "1.0.0") fail("Unsupported archive schema version.");
     object(book.generator, ["name", "version"], "Generator");
-    if (book.generator.name !== "Sovereign Finance Porter" || book.generator.version !== VERSION) fail("Unsupported archive generator version.");
+    if (book.generator.name !== "Sovereign Finance Porter" || !["0.1.0-alpha.1", VERSION].includes(book.generator.version)) fail("Unsupported archive generator version.");
     if (book.currency !== "USD") fail("This version accepts USD only; do not relabel another currency as USD.");
     if (!["mdy", "dmy"].includes(book.dateOrder)) fail("Archive date order is invalid.");
     array(book.sources, "Sources", 1);
@@ -166,8 +210,7 @@
     object(source, ["id", "name", "format", "text", "parseOptions"], "Source");
     if (source.id !== "source-1" || source.format !== "qif") fail("Unsupported source identity or format.");
     text(source.name, "Source name", 1024);
-    text(source.text, "Source text", MAX_SOURCE_BYTES);
-    if (new TextEncoder().encode(source.text).byteLength > MAX_SOURCE_BYTES) fail("Source exceeds the 25 MiB limit.");
+    qifSource(source.text);
     object(source.parseOptions, ["accountName", "currency", "dateOrder"], "Source options");
     text(source.parseOptions.accountName, "Fallback account name", 1024);
     if (source.parseOptions.currency !== book.currency || source.parseOptions.dateOrder !== book.dateOrder) fail("Archive source options are inconsistent.");
@@ -235,7 +278,11 @@
     const parser = typeof module === "object" && module.exports ? require("./qif.js") : root.PorterQif;
     if (!parser || typeof parser.parseQif !== "function") fail("QIF parser is required to verify this archive.");
     const reproduced = parser.parseQif(source.text, { sourceName: source.name, ...source.parseOptions });
-    if (stableStringify(book) !== stableStringify(reproduced)) {
+    // Alpha2 has the same interpretation for every source accepted by alpha1.
+    // Permit only the generator metadata upgrade; all source/data/issues must
+    // still reproduce exactly. Unknown generator versions remain unsupported.
+    const comparable = { ...book, generator: { ...book.generator, version: VERSION } };
+    if (stableStringify(comparable) !== stableStringify(reproduced)) {
       fail("Archive does not match its preserved QIF source. Reimport the original QIF instead of editing the archive.");
     }
     return reproduced;
@@ -247,5 +294,5 @@
     return JSON.stringify(value);
   }
 
-  return { parseMoney, toMinor, fromMinor, parseDate, dateParts, validateBook, text, MAX_SOURCE_BYTES, MAX_TRANSACTIONS, MAX_RECORDS, MAX_ACCOUNTS, MAX_LIST_ENTRIES, MAX_FIELD_LENGTH, VERSION };
+  return { parseMoney, toMinor, fromMinor, parseDate, dateParts, validateBook, text, qifSource, MAX_SOURCE_BYTES, MAX_TRANSACTIONS, MAX_RECORDS, MAX_ACCOUNTS, MAX_LIST_ENTRIES, MAX_FIELD_LENGTH, VERSION };
 });

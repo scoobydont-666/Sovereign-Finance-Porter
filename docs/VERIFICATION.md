@@ -1,8 +1,45 @@
 # Verification and publication handoff
 
-Date: **2026-11-15**. Candidate: **0.1.0-alpha.1 development preview**.
+Current candidate: **0.1.0-alpha.2 development preview**. The alpha1 evidence
+below is historical; it does not qualify the changed alpha2 code by itself.
 
-## Observed evidence
+## Alpha2 QIF text-reader correction — 2026-11-16 UTC
+
+The reported message came from the shared plain-text validator, which combined
+type, length and control-character errors. A fictional complete QIF with one
+terminal Windows Ctrl-Z reproduced it. The user's actual export was not supplied;
+its exact offending character remains unconfirmed. Microsoft's
+[text-mode file documentation](https://learn.microsoft.com/en-us/cpp/c-runtime-library/file-translation-constants?view=msvc-170)
+documents the Ctrl-Z EOF convention, but does not establish that Quicken or this
+user's export uses it.
+
+Alpha2 accepts that narrow trailer case, retains all original decoded source,
+and discloses its handling. Other controls report only Unicode code and original
+line/column. Size and type failures are distinct. Alpha1 archives retain full
+source/data/issue integrity checks while upgrading generator metadata.
+
+| Check | Observed result |
+|---|---|
+| Original local baseline | 64 tests passed, 0 failed, 0 skipped. |
+| New focused regressions on unchanged alpha1 | Test author observed 58 tests: 49 passed, 9 failed, 0 skipped; failures covered EOF parsing/roundtrip, control diagnostics and source-size messaging. |
+| Same focused suite after the correction | 58 passed, 0 failed, 0 skipped. |
+| Full alpha2 local gate, `npm run check` | 78 passed, 0 failed, 0 skipped; syntax and offline checks passed. |
+| Independent-review correction | Both reviewers independently found quadratic backtracking in the proposed trailer trim. A valid long-whitespace regression timed out on that candidate; a linear backward scan corrected it, and the full suite includes the bounded-process regression. |
+| Retained text and financial totals | Archive/CLI/browser orchestration cover exact original source, split-expanded counts, exact net amounts, all CSV targets, and old archive reload. |
+| Rejection and privacy | Embedded/repeated Ctrl-Z, unfinished records, every other disallowed C0/DEL control, CR/LF/CRLF positions, and suppressed financial/filename content covered. |
+| Frozen old archive | Fictional alpha1 fixture captured with the alpha1 parser; tampered records, source, issues and unknown generator versions still rejected. |
+
+The browser qualification script now exercises physical EOF QIF selection,
+downloaded ZIP/source/JSON validation, archive reload and a private diagnostic.
+Hosted CI results and two independent reviews are recorded against the exact
+published revision in the downloadable package's publication receipt. Consult
+the [current Actions runs](https://github.com/scoobydont-666/Sovereign-Finance-Porter/actions)
+for the corresponding seven-job result. A script or workflow alone is not a pass.
+The real user export and live destination imports remain unverified.
+
+## Alpha1 historical evidence — 2026-11-15
+
+### Observed evidence
 
 | Check | Observed result |
 |---|---|
@@ -24,10 +61,10 @@ execute in the authoring environment because Chromium could not start and the
 cloud browser did not permit local-file URLs. The separate hosted CI run below
 subsequently supplied actual browser evidence without changing the application.
 
-## Hosted CI and browser receipt
+### Hosted CI and browser receipt
 
 Published candidate: `65b132ef8438e231b720e18e54abf82d0817982a`.
-[GitHub Actions run 43776136220](https://github.com/scoobydont-666/Soveriegn-Finance-Porter/actions/runs/43776136220)
+[GitHub Actions run 43776136220](https://github.com/scoobydont-666/Sovereign-Finance-Porter/actions/runs/43776136220)
 completed with **success: all seven jobs passed** on 2026-11-15.
 
 | Job | Result | Observed browser version |
@@ -49,7 +86,7 @@ errors were observed by the script. These are real headless browser checks,
 not manual visual or accessibility acceptance and not destination imports.
 
 The first source publication also passed its four-job Node matrix in
-[run 43775771569](https://github.com/scoobydont-666/Soveriegn-Finance-Porter/actions/runs/43775771569).
+[run 43775771569](https://github.com/scoobydont-666/Sovereign-Finance-Porter/actions/runs/43775771569).
 The subsequent browser workflow change received separate non-author correctness
 and security review. Its reviewed blob is
 `e10a008b554a41810a2a708da7ce7d119e6460c8`; runtime and browser-test code were
@@ -62,7 +99,7 @@ another file selection while the input was disabled. The harness now waits for
 the read's `aria-busy=false` and a visible preview, requires the file input to be
 enabled, and verifies each newly selected filename. The original malformed-input
 assertion remains in place. Application behavior is unchanged. Use the current
-[Actions runs](https://github.com/scoobydont-666/Soveriegn-Finance-Porter/actions)
+[Actions runs](https://github.com/scoobydont-666/Sovereign-Finance-Porter/actions)
 to check the qualification result for the corrected harness.
 
 ## Explicitly unverified gates
@@ -99,7 +136,7 @@ keyboard navigation, file dialogs and non-ASCII category/account names.
 
 ## Public repository handoff
 
-Public repository: [scoobydont-666/Soveriegn-Finance-Porter](https://github.com/scoobydont-666/Soveriegn-Finance-Porter).
+Public repository: [scoobydont-666/Sovereign-Finance-Porter](https://github.com/scoobydont-666/Sovereign-Finance-Porter).
 The repository owner's initial Apache 2.0 license is retained. The application
 name remains Sovereign Finance Porter, and it has no private-suite dependency.
 

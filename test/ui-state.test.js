@@ -6,6 +6,7 @@ const vm = require('node:vm');
 const fs = require('node:fs');
 const path = require('node:path');
 const { parseQif } = require('../core/qif.js');
+const { VERSION } = require('../core/model.js');
 
 function harness() {
   class Element {
@@ -37,6 +38,33 @@ function harness() {
   return { get, context, blobs, revoked, async load(file) { get('source-file').files = [file]; await get('source-file').fire('change'); get('currency-confirm').checked = true; await get('currency-confirm').fire('change'); await get('read-button').fire('click'); } };
 }
 const nonASCII = '!Account\nNCompte été\nTBank\n^\n!Type:Bank\nD1/1/2026\nT-1.25\nPCafé\n^\n';
+
+// Read the stored entries actually downloaded by the UI. ZIP format/CRC has its
+// own tests; this oracle checks source/archive contents through orchestration.
+async function downloadedEntries(blob) {
+  const bytes = Buffer.from(await blob.arrayBuffer()), files = new Map();
+  let offset = 0;
+  while (bytes.readUInt32LE(offset) === 0x04034b50) {
+    assert.equal(bytes.readUInt16LE(offset + 8), 0);
+    const size = bytes.readUInt32LE(offset + 18);
+    const nameLength = bytes.readUInt16LE(offset + 26), extraLength = bytes.readUInt16LE(offset + 28);
+    const name = bytes.subarray(offset + 30, offset + 30 + nameLength).toString('utf8');
+    const start = offset + 30 + nameLength + extraLength;
+    assert.ok(start + size <= bytes.length);
+    files.set(name, bytes.subarray(start, start + size).toString('utf8'));
+    offset = start + size;
+  }
+  assert.equal(bytes.readUInt32LE(offset), 0x02014b50);
+  return files;
+}
+
+async function downloadReviewed(h) {
+  h.get('export-confirm').checked = true;
+  await h.get('export-confirm').fire('change');
+  assert.equal(h.get('download-button').disabled, false);
+  await h.get('download-button').fire('click');
+  return downloadedEntries(h.blobs.at(-1));
+}
 
 test('browser orchestration loads real UMD modules and prepares ZIP after explicit review', async () => {
   const h = harness();
@@ -110,4 +138,81 @@ test('late asynchronous file reads cannot repopulate a cleared workspace', async
   assert.equal(h.get('review-content').hidden, true);
   assert.equal(h.get('transactions-body').children.length, 0);
   assert.equal(h.get('download-button').disabled, true);
+});
+
+test('browser imports terminal DOS EOF and downloads an archive that reloads with exact totals', async () => {
+  const h = harness(), source = nonASCII + '\t\u001a \r\n';
+  await h.load(new File([source], 'fictional-eof.qif'));
+  assert.equal(h.get('app-error').hidden, true, h.get('app-error').textContent);
+  assert.equal(h.get('review-content').hidden, false);
+  assert.equal(h.get('stat-transactions').textContent, '1');
+  assert.equal(h.get('summary-rows').textContent, '1');
+  const first = await downloadReviewed(h);
+  assert.equal(first.get('original-source/source-1.qif'), source);
+  const canonical = JSON.parse(first.get('portable-book.json'));
+  assert.equal(canonical.sources[0].text, source);
+  assert.equal(canonical.transactions[0].amount, '-1.25');
+  assert.equal(canonical.issues.filter(issue => issue.code === 'LEGACY_DOS_EOF').length, 1);
+  const report = JSON.parse(first.get('migration-report.json'));
+  assert.equal(report.summary.sourceTransactions, 1);
+  assert.equal(report.summary.exportedRows, 1);
+  assert.equal(report.summary.sourceNet, '-1.25');
+  assert.equal(report.summary.exportNet, '-1.25');
+  assert.match([...first.entries()].find(([name]) => name.startsWith('import/'))[1], /-1\.25/);
+
+  await h.get('clear-button').fire('click');
+  await h.load(new File([first.get('portable-book.json')], 'portable-book.json'));
+  assert.equal(h.get('app-error').hidden, true, h.get('app-error').textContent);
+  assert.equal(h.get('stat-transactions').textContent, '1');
+  assert.equal(h.get('download-button').disabled, true);
+  h.get('target-select').value = 'generic';
+  await h.get('target-select').fire('change');
+  const second = await downloadReviewed(h);
+  assert.equal(h.blobs.length, 2);
+  assert.equal(second.get('original-source/source-1.qif'), source);
+  assert.deepEqual(JSON.parse(second.get('portable-book.json')), canonical);
+  const secondReport = JSON.parse(second.get('migration-report.json'));
+  assert.equal(secondReport.summary.sourceTransactions, 1);
+  assert.equal(secondReport.summary.exportedRows, 1);
+  assert.equal(secondReport.summary.exportNet, '-1.25');
+});
+
+test('browser control diagnostics show safe positions and cannot download rejected input', async () => {
+  for (const [control, code] of [['\u0000', '0000'], ['\u001a', '001A'], ['\u001b', '001B'], ['\u007f', '007F']]) {
+    const h = harness();
+    const source = '!Type:Bank\r\nD11/15/2026\r\nT-42.75\r\nPPrivate Fixture Payee\r\nM' + control + 'Private Fixture Memo\r\n^\r\n';
+    await h.load(new File([source], 'private-filename.qif'));
+    assert.equal(h.get('app-error').hidden, false);
+    const message = h.get('app-error').textContent;
+    assert.match(message, new RegExp('U\\+' + code));
+    assert.match(message, /line\s+5\b/i);
+    assert.match(message, /column\s+2\b/i);
+    assert.doesNotMatch(message, /Private Fixture|42\.75|11\/15\/2026|private-filename/);
+    assert.equal(h.get('review-content').hidden, true);
+    assert.equal(h.get('transactions-body').children.length, 0);
+    assert.equal(h.get('download-button').disabled, true);
+    h.get('export-confirm').checked = true;
+    await h.get('export-confirm').fire('change');
+    await h.get('download-button').fire('click');
+    assert.equal(h.blobs.length, 0);
+  }
+});
+
+test('browser reloads the saved alpha1 archive and upgrades only generator metadata', async () => {
+  const h = harness();
+  const original = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures/alpha1-archive.json'), 'utf8'));
+  assert.equal(original.generator.version, '0.1.0-alpha.1');
+  await h.load(new File([JSON.stringify(original)], 'portable-book.json'));
+  assert.equal(h.get('app-error').hidden, true, h.get('app-error').textContent);
+  assert.equal(h.get('stat-transactions').textContent, '2');
+  assert.equal(h.get('summary-rows').textContent, '3');
+  const files = await downloadReviewed(h);
+  const expected = structuredClone(original);
+  expected.generator.version = VERSION;
+  assert.deepEqual(JSON.parse(files.get('portable-book.json')), expected);
+  assert.equal(files.get('original-source/source-1.qif'), original.sources[0].text);
+  const report = JSON.parse(files.get('migration-report.json'));
+  assert.equal(report.summary.sourceTransactions, 2);
+  assert.equal(report.summary.exportedRows, 3);
+  assert.equal(report.summary.exportNet, '90.50');
 });

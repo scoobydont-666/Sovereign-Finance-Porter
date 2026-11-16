@@ -1,12 +1,12 @@
 {
   "name": "sovereign-finance-porter",
-  "version": "0.1.0-alpha.1",
+  "version": "0.1.0-alpha.2",
   "description": "Offline, loss-aware migration from Quicken QIF to portable archives and financial-app import files.",
   "private": true,
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/scoobydont-666/Soveriegn-Finance-Porter.git"
+    "url": "https://github.com/scoobydont-666/Sovereign-Finance-Porter.git"
   },
   "engines": { "node": ">=22" },
   "scripts": {

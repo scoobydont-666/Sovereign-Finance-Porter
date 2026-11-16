@@ -1,0 +1,135 @@
+{
+  "schemaVersion": "1.0.0",
+  "generator": {
+    "name": "Sovereign Finance Porter",
+    "version": "0.1.0-alpha.1"
+  },
+  "currency": "USD",
+  "dateOrder": "mdy",
+  "sources": [
+    {
+      "id": "source-1",
+      "name": "fictional-alpha1.qif",
+      "format": "qif",
+      "text": "!Account\nNFictional Archive Checking\nTBank\n^\n!Type:Bank\nD11/15/2026\nT-30.00\nPFictional Fixture Café\nL--Split--\nSFood\nEFictional grocery portion\n$-20.00\nSHousehold\n$-10.00\n^\nD11/16/2026\nT120.50\nPFictional Fixture Payroll\nLSalary\n^\n!Type:Class\nNFictional Archive Tag\n^\n",
+      "parseOptions": {
+        "accountName": "Fictional fallback",
+        "currency": "USD",
+        "dateOrder": "mdy"
+      }
+    }
+  ],
+  "accounts": [
+    {
+      "id": "account-1",
+      "name": "Fictional Archive Checking",
+      "type": "Bank",
+      "currency": "USD",
+      "rawFields": [
+        "NFictional Archive Checking",
+        "TBank"
+      ]
+    }
+  ],
+  "categories": [],
+  "securities": [],
+  "transactions": [
+    {
+      "id": "tx-2",
+      "sourceId": "source-1",
+      "sourceRecord": 2,
+      "line": 6,
+      "accountId": "account-1",
+      "date": "2026-11-15",
+      "amount": "-30.00",
+      "payee": "Fictional Fixture Café",
+      "memo": "",
+      "category": "",
+      "tags": [],
+      "transferAccount": null,
+      "cleared": "",
+      "checkNumber": "",
+      "splits": [
+        {
+          "amount": "-20.00",
+          "category": "Food",
+          "tags": [],
+          "memo": "Fictional grocery portion",
+          "transferAccount": null
+        },
+        {
+          "amount": "-10.00",
+          "category": "Household",
+          "tags": [],
+          "memo": "",
+          "transferAccount": null
+        }
+      ],
+      "rawFields": [
+        "D11/15/2026",
+        "T-30.00",
+        "PFictional Fixture Café",
+        "L--Split--",
+        "SFood",
+        "EFictional grocery portion",
+        "$-20.00",
+        "SHousehold",
+        "$-10.00"
+      ]
+    },
+    {
+      "id": "tx-3",
+      "sourceId": "source-1",
+      "sourceRecord": 3,
+      "line": 16,
+      "accountId": "account-1",
+      "date": "2026-11-16",
+      "amount": "120.50",
+      "payee": "Fictional Fixture Payroll",
+      "memo": "",
+      "category": "Salary",
+      "tags": [],
+      "transferAccount": null,
+      "cleared": "",
+      "checkNumber": "",
+      "splits": [],
+      "rawFields": [
+        "D11/16/2026",
+        "T120.50",
+        "PFictional Fixture Payroll",
+        "LSalary"
+      ]
+    }
+  ],
+  "unsupportedRecords": [
+    {
+      "sourceId": "source-1",
+      "sourceRecord": 4,
+      "line": 22,
+      "type": "Class",
+      "rawFields": [
+        "NFictional Archive Tag"
+      ],
+      "reason": "SECTION_UNSUPPORTED"
+    }
+  ],
+  "issues": [
+    {
+      "severity": "warning",
+      "code": "CURRENCY_ASSUMED",
+      "message": "QIF does not reliably identify account currency. This conversion explicitly treats all amounts as USD; confirm every account uses USD."
+    },
+    {
+      "severity": "info",
+      "code": "DATE_ORDER",
+      "message": "Dates are interpreted using the selected MDY order. Review an unambiguous date before exporting."
+    },
+    {
+      "severity": "warning",
+      "code": "SECTION_UNSUPPORTED",
+      "message": "A source section is retained in the archive without a destination interpretation.",
+      "sourceRecord": 4,
+      "line": 22
+    }
+  ]
+}
