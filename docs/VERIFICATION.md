@@ -23,7 +23,8 @@ source/data/issue integrity checks while upgrading generator metadata.
 | Original local baseline | 64 tests passed, 0 failed, 0 skipped. |
 | New focused regressions on unchanged alpha1 | Test author observed 58 tests: 49 passed, 9 failed, 0 skipped; failures covered EOF parsing/roundtrip, control diagnostics and source-size messaging. |
 | Same focused suite after the correction | 58 passed, 0 failed, 0 skipped. |
-| Full alpha2 local gate, `npm run check` | 77 passed, 0 failed, 0 skipped; syntax and offline checks passed. |
+| Full alpha2 local gate, `npm run check` | 78 passed, 0 failed, 0 skipped; syntax and offline checks passed. |
+| Independent-review correction | Both reviewers independently found quadratic backtracking in the proposed trailer trim. A valid long-whitespace regression timed out on that candidate; a linear backward scan corrected it, and the full suite includes the bounded-process regression. |
 | Retained text and financial totals | Archive/CLI/browser orchestration cover exact original source, split-expanded counts, exact net amounts, all CSV targets, and old archive reload. |
 | Rejection and privacy | Embedded/repeated Ctrl-Z, unfinished records, every other disallowed C0/DEL control, CR/LF/CRLF positions, and suppressed financial/filename content covered. |
 | Frozen old archive | Fictional alpha1 fixture captured with the alpha1 parser; tampered records, source, issues and unknown generator versions still rejected. |

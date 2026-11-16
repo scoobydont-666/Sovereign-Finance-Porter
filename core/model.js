@@ -56,7 +56,17 @@
       fail("QIF source contains unsupported control character U+" + code + " at line " + line + ", column " + column +
         ". Verify the text encoding or export plain-text QIF from Quicken Classic. The source has not been changed.");
     }
-    return { parseText: legacyEof ? value.slice(0, eof).replace(/[ \t\r\n]+$/u, "") : value, legacyEof };
+    let parseEnd = eof;
+    if (legacyEof) {
+      // Scan backwards once. An unanchored whitespace-plus-end regex can retry
+      // at every space in an interior field and stall on otherwise valid QIF.
+      while (parseEnd > 0) {
+        const code = value.charCodeAt(parseEnd - 1);
+        if (code !== 32 && code !== 9 && code !== 10 && code !== 13) break;
+        parseEnd--;
+      }
+    }
+    return { parseText: legacyEof ? value.slice(0, parseEnd) : value, legacyEof };
   }
 
   // Only the explicitly supported USD decimal syntax is accepted. Never infer a

@@ -5,6 +5,7 @@ const assert = require("node:assert/strict");
 const vm = require("node:vm");
 const fs = require("node:fs");
 const path = require("node:path");
+const { spawnSync } = require("node:child_process");
 const Model = require("../core/model.js");
 const { parseQif } = require("../core/qif.js");
 const { planExport } = require("../core/exporters.js");
@@ -295,6 +296,27 @@ test("terminal DOS EOF survives archive reload and all CSV targets keep exact sp
   const missingNote = clone(reloaded);
   missingNote.issues = missingNote.issues.filter(issue => issue.code !== "LEGACY_DOS_EOF");
   assert.throws(() => Model.validateBook(missingNote), /does not match/);
+});
+
+test("EOF handling stays responsive with long valid interior whitespace", () => {
+  // Isolate a known regex backtracking case so a regression cannot hang the
+  // suite. This is a generous hang guard, not a browser latency benchmark.
+  const script = `
+    const assert = require("node:assert/strict");
+    const { parseQif } = require("./core/qif.js");
+    const spaces = " ".repeat(64000);
+    const source = "!Type:Bank\\nD1/1/2026\\nT-1.00\\nP" + spaces + "X\\nM" + spaces + "X\\n^\\n\\u001a";
+    const book = parseQif(source);
+    assert.equal(book.transactions.length, 1);
+    assert.equal(book.transactions[0].amount, "-1.00");
+    assert.equal(book.sources[0].text, source);
+    assert.equal(book.issues.some(issue => issue.severity === "error"), false);
+  `;
+  const child = spawnSync(process.execPath, ["-e", script], {
+    cwd: path.resolve(__dirname, ".."), timeout: 5000, killSignal: "SIGKILL", encoding: "utf8",
+  });
+  assert.equal(child.error, undefined, "Bounded QIF with interior whitespace must not stall the reader.");
+  assert.equal(child.status, 0, child.stderr);
 });
 
 test("DOS EOF is rejected inside records, when repeated, and after unfinished fields", () => {
