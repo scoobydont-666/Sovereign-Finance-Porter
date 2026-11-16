@@ -7,12 +7,25 @@ const fs = require("node:fs");
 const path = require("node:path");
 const Model = require("../core/model.js");
 const { parseQif } = require("../core/qif.js");
+const { planExport } = require("../core/exporters.js");
 
 const basic = "!Type:Bank\nD1/2/2026\nT-42.75\nPExample Market\nLFood\n^\n";
 const named = "!Account\nNExample Checking\nTBank\n^\n" + basic;
 const options = { accountName: "Example Checking", sourceName: "fictional.qif" };
 const clone = value => JSON.parse(JSON.stringify(value));
 const errors = book => book.issues.filter(item => item.severity === "error");
+// Frozen output of the alpha1 parser; every account and transaction is fictional.
+const alpha1Archive = JSON.parse(fs.readFileSync(path.join(__dirname, "fixtures/alpha1-archive.json"), "utf8"));
+
+function privateControlError(action, code, line, column) {
+  assert.throws(action, error => {
+    assert.match(error.message, new RegExp("U\\+" + code));
+    assert.match(error.message, new RegExp("line\\s+" + line + "\\b", "i"));
+    assert.match(error.message, new RegExp("column\\s+" + (column === undefined ? "[1-9]\\d*" : column) + "\\b", "i"));
+    assert.doesNotMatch(error.message, /Private Fixture|42\.75|11\/15\/2026|private-filename/);
+    return true;
+  });
+}
 
 test("exact money normalization never uses floating-point arithmetic", () => {
   assert.equal(Model.parseMoney("-1,234.5"), "-1234.50");
@@ -236,6 +249,87 @@ test("line endings and UTF-8 BOM are interpreted without changing retained sourc
   }
 });
 
+test("one terminal DOS EOF marker is disclosed without changing records or retained source", () => {
+  const expected = parseQif(named, options);
+  const sources = [
+    named + "\u001a",
+    named.trimEnd() + "\u001a",
+    named.trimEnd() + " \t\u001a \t\r\n",
+    named.replace(/\n/g, "\r\n") + " \t\r\n\u001a\t \r\n",
+    named.replace(/\n/g, "\r") + "\u001a\r",
+    "\ufeff" + named + "\u001a\n",
+  ];
+  for (const source of sources) {
+    const book = parseQif(source, options);
+    assert.equal(book.sources[0].text, source);
+    assert.deepEqual(book.transactions, expected.transactions);
+    assert.deepEqual(book.accounts, expected.accounts);
+    assert.equal(book.unsupportedRecords.length, 0);
+    assert.equal(errors(book).length, 0);
+    const notes = book.issues.filter(issue => issue.code === "LEGACY_DOS_EOF");
+    assert.equal(notes.length, 1);
+    assert.ok(["info", "warning"].includes(notes[0].severity));
+    assert.deepEqual(Model.validateBook(clone(book)), book);
+  }
+  assert.equal(expected.issues.some(issue => issue.code === "LEGACY_DOS_EOF"), false);
+});
+
+test("terminal DOS EOF survives archive reload and all CSV targets keep exact split totals", () => {
+  const source = alpha1Archive.sources[0].text + "\t\u001a \r\n";
+  const book = parseQif(source, { sourceName: "fictional-eof.qif", ...alpha1Archive.sources[0].parseOptions });
+  const archivePlan = planExport(book, "archive");
+  assert.equal(archivePlan.blocked, false);
+  assert.equal(archivePlan.files.find(file => file.name === "original-source/source-1.qif").content, source);
+  const reloaded = Model.validateBook(JSON.parse(archivePlan.files.find(file => file.name === "portable-book.json").content));
+  assert.deepEqual(reloaded, book);
+  for (const target of ["simplifi", "simplifi-compat", "monarch", "ynab", "actual", "generic"]) {
+    const plan = planExport(reloaded, target);
+    const original = planExport(clone(alpha1Archive), target);
+    assert.equal(plan.blocked, false, target);
+    assert.equal(plan.summary.sourceTransactions, 2, target);
+    assert.equal(plan.summary.exportedRows, 3, target);
+    assert.equal(plan.summary.sourceNet, "90.50", target);
+    assert.equal(plan.summary.exportNet, "90.50", target);
+    assert.deepEqual(plan.files.filter(file => file.name.startsWith("import/")), original.files.filter(file => file.name.startsWith("import/")), target);
+  }
+  const missingNote = clone(reloaded);
+  missingNote.issues = missingNote.issues.filter(issue => issue.code !== "LEGACY_DOS_EOF");
+  assert.throws(() => Model.validateBook(missingNote), /does not match/);
+});
+
+test("DOS EOF is rejected inside records, when repeated, and after unfinished fields", () => {
+  const prefix = "!Account\nNPrivate Fixture Account\nTBank\n^\n!Type:Bank\nD11/15/2026\nT-42.75\nPPrivate Fixture Payee\n";
+  const complete = prefix + "MPrivate Fixture Memo\n^\n";
+  const cases = [
+    { source: prefix + "M\u001aPrivate Fixture Memo\n^\n", line: 9, column: 2 },
+    { source: complete + "\u001a\nD11/15/2026\nT1\n^\n", line: 11, column: 1 },
+    { source: complete + "\u001a \t\u001a\n", line: 11 },
+    { source: prefix + "M\u001a \r\n", line: 9, column: 2 },
+    { source: prefix + "M^ \u001a\n", line: 9, column: 4 },
+    { source: "!Type:Bank\n\u001a", line: 2, column: 1 },
+    { source: complete + "\u001a\u00a0", line: 11, column: 1 },
+  ];
+  for (const { source, line, column } of cases) privateControlError(() => parseQif(source, options), "001A", line, column);
+});
+
+test("other C0 controls and DEL report code and position without financial fields", () => {
+  const controls = [...Array.from({ length: 32 }, (_, code) => code).filter(code => ![9, 10, 13, 26].includes(code)), 127];
+  for (const code of controls) {
+    for (const newline of ["\n", "\r\n", "\r"]) {
+      const source = ["!Type:Bank", "D11/15/2026", "T-42.75", "PPrivate Fixture Payee", "M" + String.fromCharCode(code) + "Private Fixture Memo", "^", ""].join(newline);
+      privateControlError(() => parseQif(source, options), code.toString(16).toUpperCase().padStart(4, "0"), 5, 2);
+    }
+  }
+});
+
+test("legacy EOF handling never loosens normal field validation", () => {
+  assert.throws(() => Model.text("Private Fixture\u001a", "Payee"));
+  assert.throws(() => parseQif(named, { accountName: "Private Fixture\u001a" }));
+  const tampered = clone(alpha1Archive);
+  tampered.transactions[0].memo += "\u001a";
+  assert.throws(() => Model.validateBook(tampered));
+});
+
 test("identical legitimate transactions are retained rather than deduplicated", () => {
   const book = parseQif(basic + basic);
   assert.equal(book.transactions.length, 2);
@@ -253,6 +347,7 @@ test("QIF account names are data, including prototype-looking names and path sep
 });
 
 test("source validation rejects binary, undecodable, unsupported currency, and invalid options", () => {
+  for (const value of [null, undefined, 1, {}, new Uint8Array([65])]) assert.throws(() => parseQif(value), /must be a text string/);
   for (const qif of ["", " \n", basic + "\u0000", basic + "\u0007", basic + "\ufffd"]) assert.throws(() => parseQif(qif));
   assert.throws(() => parseQif(basic, { currency: "EUR" }), /USD/);
   assert.throws(() => parseQif(basic, { dateOrder: "auto" }), /Date order/);
@@ -262,7 +357,8 @@ test("source validation rejects binary, undecodable, unsupported currency, and i
 });
 
 test("source and field limits fail explicitly", () => {
-  assert.throws(() => parseQif("x".repeat(Model.MAX_SOURCE_BYTES + 1)), /bounded plain text|25 MiB/);
+  assert.throws(() => parseQif("x".repeat(Model.MAX_SOURCE_BYTES + 1)), /25 MiB/);
+  assert.throws(() => parseQif("é".repeat(Model.MAX_SOURCE_BYTES / 2 + 1)), /25 MiB/);
   assert.throws(() => parseQif("!Type:Bank\nP" + "x".repeat(65536) + "\n^\n"), /65,536/);
 });
 
@@ -339,6 +435,38 @@ test("canonical JSON key order does not affect reproduction", () => {
   const book = parseQif(named);
   const reordered = Object.fromEntries(Object.entries(book).reverse());
   assert.deepEqual(Model.validateBook(clone(reordered)), book);
+});
+
+test("saved alpha1 archives upgrade only generator metadata", () => {
+  assert.equal(alpha1Archive.generator.version, "0.1.0-alpha.1");
+  const expected = clone(alpha1Archive);
+  expected.generator.version = Model.VERSION;
+  const validated = Model.validateBook(clone(alpha1Archive));
+  assert.deepEqual(validated, expected);
+  const exported = planExport(clone(alpha1Archive), "simplifi");
+  assert.equal(exported.blocked, false);
+  assert.equal(exported.summary.sourceTransactions, 2);
+  assert.equal(exported.summary.exportedRows, 3);
+  assert.equal(exported.summary.exportNet, "90.50");
+  assert.deepEqual(JSON.parse(exported.files.find(file => file.name === "portable-book.json").content), expected);
+});
+
+test("alpha1 compatibility preserves source, split, record and issue integrity checks", () => {
+  for (const mutate of [
+    value => { value.transactions[1].amount = "999.99"; },
+    value => { value.sources[0].text = value.sources[0].text.replace("T120.50", "T999.99"); },
+    value => { value.transactions[0].splits[0].amount = "-21.00"; value.transactions[0].splits[1].amount = "-9.00"; },
+    value => { value.transactions[0].rawFields[2] = "PChanged fixture payee"; },
+    value => { value.unsupportedRecords = []; },
+    value => { value.issues = []; },
+    value => { value.generator.version = "0.1.0-alpha.0"; },
+    value => { value.generator.version = "99.0.0"; },
+  ]) {
+    const changed = clone(alpha1Archive);
+    mutate(changed);
+    assert.throws(() => Model.validateBook(changed));
+    assert.throws(() => planExport(changed, "simplifi"));
+  }
 });
 
 test("browser UMD path loads without Node or network and verifies its own archive", () => {

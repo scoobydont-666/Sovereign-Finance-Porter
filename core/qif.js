@@ -9,9 +9,8 @@
 
   function parseQif(text, options = {}) {
     if (!Model) throw new Error("The canonical model must load before the QIF parser.");
-    Model.text(text, "QIF source", Model.MAX_SOURCE_BYTES);
+    const source = Model.qifSource(text);
     if (!text.trim()) throw new Error("The QIF source is empty.");
-    if (new TextEncoder().encode(text).byteLength > Model.MAX_SOURCE_BYTES) throw new Error("QIF source exceeds the 25 MiB limit.");
     if (text.includes("\ufffd")) throw new Error("QIF source contains undecodable text. Select the original file encoding and try again.");
     let lineCount = 1;
     for (let index = 0; index < text.length; index++) {
@@ -53,6 +52,7 @@
 
     issue("warning", "CURRENCY_ASSUMED", "QIF does not reliably identify account currency. This conversion explicitly treats all amounts as USD; confirm every account uses USD.");
     issue("info", "DATE_ORDER", "Dates are interpreted using the selected " + dateOrder.toUpperCase() + " order. Review an unambiguous date before exporting.");
+    if (source.legacyEof) issue("info", "LEGACY_DOS_EOF", "A terminal Windows Ctrl-Z end-of-file marker was ignored while reading records. The complete original text, including the marker, remains in the archive.");
 
     function archive(raw, location, type, reason) {
       book.unsupportedRecords.push({ sourceId: "source-1", sourceRecord: location.sourceRecord, line: location.line, type, rawFields: raw.slice(), reason });
@@ -232,7 +232,7 @@
       }
     }
 
-    const lines = text.replace(/^\ufeff/, "").split(/\r\n|\r|\n/);
+    const lines = source.parseText.replace(/^\ufeff/, "").split(/\r\n|\r|\n/);
     for (let index = 0; index < lines.length; index++) {
       const line = lines[index];
       if (line.length > Model.MAX_FIELD_LENGTH) throw new Error("QIF contains a field exceeding 65,536 characters.");

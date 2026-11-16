@@ -67,11 +67,22 @@ Validated numeric amount fields retain their original signs.
 
 ## Reusable archive contract
 
-`schemaVersion: 1.0.0` archives are bound to generator `0.1.0-alpha.1` in this
-preview. `sources[0].parseOptions` records the fallback account name, date order
+`schemaVersion: 1.0.0` archives accept generator `0.1.0-alpha.1` and
+`0.1.0-alpha.2` in this preview. Alpha1 archives receive only a generator-version
+metadata upgrade. `sources[0].parseOptions` records the fallback account name, date order
 and USD currency. Reopening validates references, types, money, split balances,
 IDs and source coverage, then reparses the original QIF and compares normalized
-data. Hand-editing this JSON is intentionally not a supported import path.
+data and every issue. The comparison permits only the version metadata change;
+unknown generator versions are rejected. Hand-editing this JSON is intentionally
+not a supported import path.
+
+The QIF source validator recognizes a single terminal Windows Ctrl-Z marker only
+after a complete caret record, surrounded by optional ASCII whitespace. Parsing
+uses a view without that trailer; the original source remains unchanged and a
+`LEGACY_DOS_EOF` issue records the handling. Embedded/repeated markers and other
+unsupported C0/DEL controls are rejected with a code and position. Normalized
+fields keep strict control validation. Resource limits apply to the full source,
+including its trailer.
 
 Future versions must implement an explicit archive upgrade before changing
 parser semantics, preserve unknown fields and offer a rollback/preservation

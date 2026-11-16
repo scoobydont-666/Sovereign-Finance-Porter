@@ -8,10 +8,12 @@ CommonJS in Node and a global in the browser:
   `toMinor(value)` -> BigInt, `fromMinor(value)` -> string,
   `parseDate(value, order)` -> ISO date; order is `mdy` or `dmy`.
   `validateBook(value)` -> validated book or throw Error.
+  `qifSource(text)` -> `{parseText,legacyEof}`; validates the full source and
+  provides a parsing view while callers retain the original decoded text.
 - `PorterQif`: `parseQif(text, options)` -> book. Options: `sourceName`,
   `accountName` (fallback for a single-account export), `currency` (`USD`),
   `dateOrder` (`mdy` default). Maximum source size 25 MiB; maximum 100,000
-  transactions; reject binary/null characters; unknown records preserved.
+  transactions; reject unsupported controls; unknown records preserved.
 - `PorterExporters`: `targets` array of {id,name,description},
   `analyze(book)` -> {accounts:[{id,name,type,transactionCount,total}],
   transactionCount,unsupportedCount,duplicateGroups,issues},
@@ -29,7 +31,7 @@ CommonJS in Node and a global in the browser:
 ```json
 {
   "schemaVersion":"1.0.0",
-  "generator":{"name":"Sovereign Finance Porter","version":"0.1.0-alpha.1"},
+  "generator":{"name":"Sovereign Finance Porter","version":"0.1.0-alpha.2"},
   "currency":"USD",
   "dateOrder":"mdy",
   "sources":[{"id":"source-1","name":"fictional.qif","format":"qif","text":"original source","parseOptions":{"accountName":"Imported account","currency":"USD","dateOrder":"mdy"}}],
@@ -58,8 +60,20 @@ terminators), preserving repeated fields. Unsupported record shape:
 `{sourceId,sourceRecord,line,type,rawFields,reason}`. Issue shape:
 `{severity:'error'|'warning'|'info',code,message,sourceRecord?,line?,transactionId?}`.
 No financial values or source text should appear in uncaught errors or console logs.
-Canonical v1 accepts this exact preview generator version and revalidates by
-reparsing its retained QIF; it is not an arbitrary editable-ledger JSON importer.
+Canonical v1 accepts alpha1 and alpha2 generator versions and revalidates by
+reparsing its retained QIF. Alpha1 upgrades only generator-version metadata;
+source text, financial records, raw fields, unsupported records and issues must
+reproduce exactly. Unknown versions are rejected. The archive is not an
+arbitrary editable-ledger JSON importer.
+
+A single terminal Ctrl-Z (`U+001A`) after a complete caret record is accepted
+with optional surrounding ASCII spaces, tabs, CR and LF. It produces one
+`LEGACY_DOS_EOF` info issue. The parsing view omits that trailer while
+`sources[0].text` and `original-source/source-1.qif` retain it. Embedded or
+repeated markers, markers after unfinished fields, and other unsupported
+C0/DEL controls throw with Unicode code, one-based line and column. CRLF counts
+as one newline; columns count Unicode code points in the original decoded text.
+Errors never echo source content. Generic normalized-field validation is unchanged.
 
 Only known cash transaction section types Bank, Cash, CCard, Oth A, Oth L are
 normalized. Investments are archived as unsupported until a loss-aware securities
