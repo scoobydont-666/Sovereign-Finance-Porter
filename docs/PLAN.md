@@ -24,6 +24,13 @@ data is needed to develop or test it.
 | A9 | A Windows user can open the app and download a valid kit offline | Real headless Chrome/Edge local-file and ZIP-download checks passed in hosted CI; manual desktop review remains. |
 | A10 | A disposable destination accepts a synthetic kit with correct balances/classification | Explicitly pending per destination. |
 
+## Active local diagnostic handoffs
+
+- [QIF U+0001 field inspection for CHIMI](handoffs/qif-u0001.md), tracked in
+  [issue #2](https://github.com/scoobydont-666/Sovereign-Finance-Porter/issues/2):
+  obtain only the field tag at line 1043 and nearest standard section header.
+  The actual export remains local; resolution is pending these diagnostics.
+
 ## Phase 1 — Public preview and destination qualification
 
 The implemented slice is QIF → strict canonical archive → local review → CSV or
