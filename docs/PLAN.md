@@ -24,12 +24,14 @@ data is needed to develop or test it.
 | A9 | A Windows user can open the app and download a valid kit offline | Real headless Chrome/Edge local-file and ZIP-download checks passed in hosted CI; manual desktop review remains. |
 | A10 | A disposable destination accepts a synthetic kit with correct balances/classification | Explicitly pending per destination. |
 
-## Active local diagnostic handoffs
+## QIF incident handoff
 
-- [QIF U+0001 field inspection for CHIMI](handoffs/qif-u0001.md), tracked in
+- [QIF U+0001 account-type correction for CHIMI](handoffs/qif-u0001.md), tracked in
   [issue #2](https://github.com/scoobydont-666/Sovereign-Finance-Porter/issues/2):
-  obtain only the field tag at line 1043 and nearest standard section header.
-  The actual export remains local; resolution is pending these diagnostics.
+  structural inspection identified an unknown account type in an AutoSwitch
+  catalogue. Alpha3 preserves that evidence and converts transactions selected
+  by a separate explicit account declaration. The handoff records fictional
+  regressions, private validation scope and candidate review/CI requirements.
 
 ## Phase 1 — Public preview and destination qualification
 

@@ -90,8 +90,13 @@
         const name = one(raw, "N", true);
         if (!name.trim()) throw new Error("An account declaration has an empty name.");
         const rawType = one(raw, "T");
-        const type = CASH_TYPES.get(rawType.trim().toLowerCase()) || rawType.trim();
+        // Some exported account catalogues contain this non-text type value.
+        // Its meaning is unknown: retain it as evidence, do not map it to Bank.
+        // Existing account selection can supply a type from an explicit section.
+        const unspecifiedType = rawType === "\u0001";
+        const type = unspecifiedType ? "" : CASH_TYPES.get(rawType.trim().toLowerCase()) || rawType.trim();
         const account = getAccount(name, type, raw);
+        if (unspecifiedType) issue("warning", "ACCOUNT_TYPE_UNSPECIFIED", "An account declaration contains an unrecognized U+0001 type marker. Its type is left unspecified unless an explicit declaration or transaction section identifies it. Original source and account fields retain the marker.", location);
         accountCandidates.push(account);
         accountContextSeen = true;
       } catch (error) {

@@ -12,7 +12,7 @@
   const MAX_ACCOUNTS = 1000;
   const MAX_LIST_ENTRIES = 20000;
   const MAX_FIELD_LENGTH = 65536;
-  const VERSION = "0.1.0-alpha.2";
+  const VERSION = "0.1.0-alpha.3";
 
   function fail(message) {
     throw new Error(message);
@@ -25,10 +25,10 @@
     return value;
   }
 
-  // QIF exports can end with the Windows text-mode EOF marker. Recognize one
-  // marker only after a complete caret record; never truncate at an embedded
-  // marker or relax validation of financial fields. The caller archives value,
-  // while parseText is the view used to read records.
+  // Preserve narrowly recognized legacy metadata without relaxing financial
+  // fields: one terminal Windows EOF, or exactly T + SOH in an !Account section.
+  // The latter has no assigned type meaning. The caller archives value unchanged;
+  // only the EOF trailer is omitted from the view used to read records.
   function qifSource(value) {
     if (typeof value !== "string") fail("QIF source must be a text string.");
     if (value.length > MAX_SOURCE_BYTES || new TextEncoder().encode(value).byteLength > MAX_SOURCE_BYTES) {
@@ -37,24 +37,34 @@
     const eof = value.lastIndexOf("\u001a");
     const legacyEof = eof !== -1 && /^[ \t\r\n]*$/u.test(value.slice(eof + 1)) &&
       /(?:^|[\r\n])[ \t]*\^[ \t\r\n]*$/u.test(value.slice(0, eof));
-    const control = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/u.exec(value);
-    if (control && (!legacyEof || control.index !== eof)) {
-      let line = 1, column = 1;
-      // Positions refer to original decoded text: CRLF is one newline and an
-      // astral Unicode character is one column. Do not echo financial content.
-      for (let index = 0; index < control.index; index++) {
-        if (value[index] === "\r") {
-          line++; column = 1;
-          if (value[index + 1] === "\n") index++;
-        } else if (value[index] === "\n") { line++; column = 1; }
-        else {
-          column++;
-          if (value.codePointAt(index) > 0xffff) index++;
+    if (/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/u.test(value)) {
+      let accountSection = false, lineNumber = 0;
+      // Iterate physical lines once, without building another full lines array.
+      // AutoSwitch directives keep the current section, as in the QIF parser;
+      // any other header ends the narrowly recognized !Account context.
+      for (const match of value.matchAll(/([^\r\n]*)(?:\r\n|\r|\n|$)/gu)) {
+        lineNumber++;
+        const rawLine = match[1];
+        const line = match.index === 0 ? rawLine.replace(/^\ufeff/u, "") : rawLine;
+        if (line.startsWith("!")) {
+          const header = line.trim().toLowerCase();
+          if (header === "!account") accountSection = true;
+          else if (header !== "!option:autoswitch" && header !== "!clear:autoswitch") accountSection = false;
+        }
+        if (accountSection && rawLine === "T\u0001") continue;
+        for (const control of rawLine.matchAll(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/gu)) {
+          if (legacyEof && match.index + control.index === eof) continue;
+          let column = 1;
+          // CRLF is one newline; columns count original Unicode code points.
+          for (let index = 0; index < control.index; index++) {
+            column++;
+            if (rawLine.codePointAt(index) > 0xffff) index++;
+          }
+          const code = control[0].charCodeAt(0).toString(16).toUpperCase().padStart(4, "0");
+          fail("QIF source contains unsupported control character U+" + code + " at line " + lineNumber + ", column " + column +
+            ". Verify the text encoding or export plain-text QIF from Quicken Classic. The source has not been changed.");
         }
       }
-      const code = control[0].charCodeAt(0).toString(16).toUpperCase().padStart(4, "0");
-      fail("QIF source contains unsupported control character U+" + code + " at line " + line + ", column " + column +
-        ". Verify the text encoding or export plain-text QIF from Quicken Classic. The source has not been changed.");
     }
     let parseEnd = eof;
     if (legacyEof) {
@@ -155,9 +165,11 @@
     return value;
   }
 
-  function rawFields(value) {
+  function rawFields(value, accountContext = false) {
     array(value, "Original fields", 1500000).forEach(field => {
-      text(field, "Original field");
+      // Only retained account evidence may contain this exact unknown type.
+      // Normalized fields and every other record kind keep strict text checks.
+      if (!(accountContext && field === "T\u0001")) text(field, "Original field");
       if (/[\r\n]/.test(field)) fail("Original field contains a line terminator.");
     });
   }
@@ -201,7 +213,7 @@
     object(book, ["schemaVersion", "generator", "currency", "dateOrder", "sources", "accounts", "categories", "securities", "transactions", "unsupportedRecords", "issues"], "Archive");
     if (book.schemaVersion !== "1.0.0") fail("Unsupported archive schema version.");
     object(book.generator, ["name", "version"], "Generator");
-    if (book.generator.name !== "Sovereign Finance Porter" || !["0.1.0-alpha.1", VERSION].includes(book.generator.version)) fail("Unsupported archive generator version.");
+    if (book.generator.name !== "Sovereign Finance Porter" || !["0.1.0-alpha.1", "0.1.0-alpha.2", VERSION].includes(book.generator.version)) fail("Unsupported archive generator version.");
     if (book.currency !== "USD") fail("This version accepts USD only; do not relabel another currency as USD.");
     if (!["mdy", "dmy"].includes(book.dateOrder)) fail("Archive date order is invalid.");
     array(book.sources, "Sources", 1);
@@ -220,7 +232,7 @@
       object(account, ["id", "name", "type", "currency", "rawFields"], "Account");
       id(account.id, "Account identifier"); text(account.name, "Account name"); text(account.type, "Account type");
       if (!account.name.trim() || account.currency !== "USD") fail("Account name or currency is invalid.");
-      rawFields(account.rawFields);
+      rawFields(account.rawFields, true);
     }
     const accounts = unique(book.accounts, "id", "Accounts");
     unique(book.accounts, "name", "Accounts");
@@ -259,7 +271,7 @@
       object(record, ["sourceId", "sourceRecord", "line", "type", "rawFields", "reason"], "Unsupported record");
       if (record.sourceId !== source.id) fail("Unsupported record references an unknown source.");
       positiveInteger(record.sourceRecord, "Source record"); positiveInteger(record.line, "Source line");
-      text(record.type, "Record type"); text(record.reason, "Record reason"); rawFields(record.rawFields);
+      text(record.type, "Record type"); text(record.reason, "Record reason"); rawFields(record.rawFields, record.type === "Account");
     }
     unique(book.unsupportedRecords, "sourceRecord", "Unsupported records");
     const transactionRecords = new Set(book.transactions.map(item => item.sourceRecord));
@@ -278,7 +290,7 @@
     const parser = typeof module === "object" && module.exports ? require("./qif.js") : root.PorterQif;
     if (!parser || typeof parser.parseQif !== "function") fail("QIF parser is required to verify this archive.");
     const reproduced = parser.parseQif(source.text, { sourceName: source.name, ...source.parseOptions });
-    // Alpha2 has the same interpretation for every source accepted by alpha1.
+    // Alpha3 has the same interpretation for sources accepted by alpha1/alpha2.
     // Permit only the generator metadata upgrade; all source/data/issues must
     // still reproduce exactly. Unknown generator versions remain unsupported.
     const comparable = { ...book, generator: { ...book.generator, version: VERSION } };

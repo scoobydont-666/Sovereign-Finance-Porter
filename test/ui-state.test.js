@@ -216,3 +216,48 @@ test('browser reloads the saved alpha1 archive and upgrades only generator metad
   assert.equal(report.summary.exportedRows, 3);
   assert.equal(report.summary.exportNet, '90.50');
 });
+
+test('browser reads SOH catalogue metadata and reopens a reviewed ZIP archive without altering account assignment', async () => {
+  const { source } = require('./fixtures/account-type-source.json');
+  const h = harness();
+  await h.load(new File([source], 'fictional-account-type.qif'));
+  assert.equal(h.get('app-error').hidden, true, h.get('app-error').textContent);
+  assert.equal(h.get('review-content').hidden, false);
+  assert.equal(h.get('stat-transactions').textContent, '2');
+  assert.equal(h.get('summary-rows').textContent, '3');
+  assert.equal(h.get('download-button').disabled, true);
+  const first = await downloadReviewed(h);
+  assert.equal(first.get('original-source/source-1.qif'), source);
+  const canonical = JSON.parse(first.get('portable-book.json'));
+  assert.equal(canonical.accounts[1].type, '');
+  assert.equal(canonical.accounts[1].rawFields[1], 'T\u0001');
+  assert.deepEqual(canonical.transactions.map(t => [t.accountId, t.amount]), [['account-1', '120.50'], ['account-1', '-30.00']]);
+  assert.equal(canonical.issues.filter(i => i.code === 'ACCOUNT_TYPE_UNSPECIFIED').length, 1);
+  for (const [name, content] of first) if (name.endsWith('.csv')) assert.doesNotMatch(content, /\u0001/u);
+  for (const row of h.get('accounts-body').children) for (const cell of row.children) assert.doesNotMatch(cell.textContent, /\u0001/u);
+  const report = JSON.parse(first.get('migration-report.json'));
+  assert.equal(report.summary.sourceTransactions, 2);
+  assert.equal(report.summary.exportedRows, 3);
+  assert.equal(report.summary.exportNet, '90.50');
+  await h.get('clear-button').fire('click');
+  h.get('encoding').value = 'windows-1252';
+  await h.load(new File([first.get('portable-book.json')], 'portable-book.json'));
+  assert.equal(h.get('app-error').hidden, true, h.get('app-error').textContent);
+  assert.equal(h.get('stat-transactions').textContent, '2');
+  const reopened = await downloadReviewed(h);
+  assert.deepEqual(JSON.parse(reopened.get('portable-book.json')), canonical);
+  assert.equal(reopened.get('original-source/source-1.qif'), source);
+});
+
+test('browser reopens the frozen alpha2 archive with generator-only upgrade', async () => {
+  const original = require('./fixtures/alpha2-archive.json');
+  const h = harness();
+  await h.load(new File([JSON.stringify(original)], 'portable-book.json'));
+  assert.equal(h.get('app-error').hidden, true, h.get('app-error').textContent);
+  const files = await downloadReviewed(h);
+  const expected = structuredClone(original);
+  expected.generator.version = VERSION;
+  assert.deepEqual(JSON.parse(files.get('portable-book.json')), expected);
+  assert.equal(files.get('original-source/source-1.qif'), original.sources[0].text);
+  assert.equal(JSON.parse(files.get('migration-report.json')).summary.exportNet, '90.50');
+});
