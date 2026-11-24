@@ -10,10 +10,10 @@ web compatibility profile, Monarch Money, YNAB, Actual Budget, and other softwar
 It also creates a destination-neutral archive and preserves the original QIF
 text for native import into applications such as GnuCash.
 
-**Status: development preview, 0.1.0-alpha.2.** Conversion, archive integrity,
+**Status: development preview, 0.1.0-alpha.3.** Conversion, archive integrity,
 CLI behavior and browser orchestration have automated tests. Scripted headless
 checks pass in Windows Chrome, Windows Edge and Linux Chromium. Manual visual
-and accessibility review, real Quicken fixtures and actual destination imports
+and accessibility review, broader QIF coverage and actual destination imports
 remain release gates. See
 [verification evidence](docs/VERIFICATION.md). Do not treat a locally generated
 CSV as proof that a destination accepted it correctly.
@@ -54,7 +54,14 @@ database; retaining QIF is not a substitute for retaining the QDF backup.
 
 ### If a fresh export reports a control character
 
-Alpha2 accepts one terminal Windows Ctrl-Z (`U+001A`) after the last complete
+Alpha3 accepts an exact `T` field containing only `U+0001` in an `!Account`
+declaration. An affected account catalogue entry stays present, with its type
+unspecified unless a separate explicit declaration or transaction section
+identifies it. The review shows `ACCOUNT_TYPE_UNSPECIFIED`; original source and
+account fields retain the marker. No account type is inferred from that marker,
+and ambiguous account selection still blocks conversion.
+
+Porter also accepts one terminal Windows Ctrl-Z (`U+001A`) after the last complete
 QIF record, with optional ASCII spaces, tabs or line breaks around the marker.
 The review discloses `LEGACY_DOS_EOF`, and the archive retains the complete
 original decoded source, including that marker. This is a Windows text-file
@@ -98,7 +105,7 @@ account deletion, subscription cancellation or transaction creation is performed
 | Actual Budget | Mappable per-account CSV | Pre-create/map categories; review duplicate matching and transfers. |
 | Portable CSV | date, payee, amount, category | ISO dates, signed amounts; richer metadata remains in JSON. |
 | GnuCash / native QIF | Original QIF text and checklist | Use the destination's native QIF wizard; no reconstructed investment or tax-lot claims. |
-| Portable archive | JSON, original QIF text, reports | Alpha2 also reopens alpha1 archives, upgrading generator metadata while revalidating all retained data. |
+| Portable archive | JSON, original QIF text, reports | Alpha3 also reopens alpha1 and alpha2 archives, upgrading generator metadata while revalidating all retained data. |
 
 The current Quicken help pages disagree on four versus seven CSV columns and
 date formatting. Porter deliberately exposes separate profiles and records the

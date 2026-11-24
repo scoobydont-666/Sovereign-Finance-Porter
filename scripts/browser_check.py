@@ -5,6 +5,7 @@ double and must be recorded as NOT_RUN if the browser cannot start.
 """
 
 import argparse
+import csv
 import io
 import json
 from pathlib import Path
@@ -129,6 +130,91 @@ def main():
             expect(page.locator("#export-blocked")).not_to_be_visible()
             expect(page.locator("#download-button")).to_be_disabled()
 
+            # Fully fictional account catalogue: one unknown control-coded type,
+            # followed by an explicit, different transaction account. The JSON
+            # fixture escapes SOH; selecting this physical QIF exercises decoding.
+            soh_source = json.loads((root / "test/fixtures/account-type-source.json").read_text(encoding="utf-8"))["source"]
+            soh_file = temp / "fictional-account-type.qif"
+            soh_file.write_bytes(soh_source.encode("utf-8"))
+            page.locator("#clear-button").click()
+            page.locator("#encoding").select_option("utf-8")
+            expect(page.locator("#source-file")).to_be_enabled()
+            page.locator("#source-file").set_input_files(soh_file)
+            expect(page.locator("#file-title")).to_have_text(soh_file.name)
+            page.locator("#currency-confirm").check()
+            page.locator("#read-button").click()
+            expect(page.locator("#read-button")).to_have_attribute("aria-busy", "false")
+            expect(page.locator("#review-content")).to_be_visible()
+            expect(page.locator("#app-error")).not_to_be_visible()
+            expect(page.locator("#stat-transactions")).to_have_text("2")
+            expect(page.locator("#summary-rows")).to_have_text("3")
+            expect(page.locator("#download-button")).to_be_disabled()
+            assert "\x01" not in page.locator("#accounts-body").inner_text()
+            page.locator("#target-select").select_option("simplifi")
+            page.locator("#export-confirm").check()
+            with page.expect_download() as pending:
+                page.locator("#download-button").click()
+            soh_output = temp / "fictional-account-type-kit.zip"
+            pending.value.save_as(soh_output)
+            with zipfile.ZipFile(io.BytesIO(soh_output.read_bytes())) as kit:
+                assert kit.testzip() is None
+                assert kit.read("original-source/source-1.qif") == soh_source.encode("utf-8")
+                soh_canonical = kit.read("portable-book.json")
+                soh_book = json.loads(soh_canonical)
+                assert soh_book["sources"][0]["text"] == soh_source
+                assert [(a["name"], a["type"]) for a in soh_book["accounts"]] == [
+                    ("Fictional Checking", "Bank"), ("Fictional Legacy", "")]
+                assert soh_book["accounts"][1]["rawFields"][1] == "T\x01"
+                assert [(t["accountId"], t["amount"]) for t in soh_book["transactions"]] == [
+                    ("account-1", "120.50"), ("account-1", "-30.00")]
+                soh_notes = [i for i in soh_book["issues"] if i["code"] == "ACCOUNT_TYPE_UNSPECIFIED"]
+                assert len(soh_notes) == 1 and soh_notes[0]["severity"] == "warning"
+                assert not any(i["severity"] == "error" for i in soh_book["issues"])
+                import_files = [name for name in kit.namelist() if name.startswith("import/")]
+                assert len(import_files) == 1
+                rows = list(csv.DictReader(io.StringIO(kit.read(import_files[0]).decode("utf-8"))))
+                assert [row["Amount"] for row in rows] == ["120.50", "-20.00", "-10.00"]
+                for name in kit.namelist():
+                    if name.endswith(".csv"):
+                        assert b"\x01" not in kit.read(name)
+                report = json.loads(kit.read("migration-report.json"))
+                assert report["summary"]["sourceTransactions"] == 2
+                assert report["summary"]["exportedRows"] == 3
+                assert report["summary"]["sourceNet"] == "90.50"
+                assert report["summary"]["exportNet"] == "90.50"
+            expect(page.locator("#issues-list")).to_contain_text(soh_notes[0]["message"])
+            assert soh_file.read_bytes() == soh_source.encode("utf-8")
+
+            # Reload and download the generated canonical archive through the UI.
+            # A previous Windows-1252 choice must not affect JSON decoding.
+            page.locator("#clear-button").click()
+            soh_archive = temp / "fictional-account-type-book.json"
+            soh_archive.write_bytes(soh_canonical)
+            page.locator("#encoding").select_option("windows-1252")
+            expect(page.locator("#source-file")).to_be_enabled()
+            page.locator("#source-file").set_input_files(soh_archive)
+            expect(page.locator("#file-title")).to_have_text(soh_archive.name)
+            page.locator("#currency-confirm").check()
+            page.locator("#read-button").click()
+            expect(page.locator("#read-button")).to_have_attribute("aria-busy", "false")
+            expect(page.locator("#review-content")).to_be_visible()
+            expect(page.locator("#app-error")).not_to_be_visible()
+            expect(page.locator("#stat-transactions")).to_have_text("2")
+            expect(page.locator("#summary-rows")).to_have_text("3")
+            expect(page.locator("#issues-list")).to_contain_text(soh_notes[0]["message"])
+            expect(page.locator("#download-button")).to_be_disabled()
+            page.locator("#target-select").select_option("generic")
+            page.locator("#export-confirm").check()
+            with page.expect_download() as pending:
+                page.locator("#download-button").click()
+            reopened_output = temp / "fictional-reopened-account-type.zip"
+            pending.value.save_as(reopened_output)
+            with zipfile.ZipFile(io.BytesIO(reopened_output.read_bytes())) as kit:
+                assert kit.testzip() is None
+                assert json.loads(kit.read("portable-book.json")) == soh_book
+                assert kit.read("original-source/source-1.qif") == soh_source.encode("utf-8")
+                assert json.loads(kit.read("migration-report.json"))["summary"]["exportNet"] == "90.50"
+
             control_file = temp / "fictional-private-control.qif"
             control_source = ("!Type:Bank\r\nD10/1/2026\r\nT-12.34\r\n"
                               "PPrivate Fixture Payee\r\nM\x1bPrivate Fixture Memo\r\n^\r\n")
@@ -168,7 +254,7 @@ def main():
             assert not errors, errors
             assert not remote_requests, remote_requests
             print(json.dumps({"browser": browser.version, "offline": True,
-                              "checks": "demo, terminal DOS EOF physical file, exact source preservation, ZIP integrity, counts/totals, acknowledgement reset, clear, EOF archive reload, private control diagnostics, invalid-source blocking",
+                              "checks": "demo, terminal DOS EOF physical file, SOH account catalogue physical file, explicit account assignment, exact source preservation, ZIP integrity, counts/totals, acknowledgement reset, clear, EOF/SOH archive reload, private control diagnostics, invalid-source blocking",
                               "result": "PASS"}))
             browser.close()
 

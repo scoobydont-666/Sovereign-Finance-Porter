@@ -1,0 +1,4 @@
+{
+  "description": "Independently invented account catalogue and transactions; no user records. SOH is escaped in this JSON and decoded only during tests.",
+  "source": "!Type:Class\r\nNFictional Shared\r\n^\r\n!Type:Cat\r\nNExample Groceries\r\nE\r\n^\r\n!Option:AutoSwitch\r\n!Account\r\nNFictional Checking\r\nTBank\r\n^\r\nNFictional Legacy\r\nT\u0001\r\n^\r\n!Clear:AutoSwitch\r\n!Account\r\nNFictional Checking\r\nTBank\r\n^\r\n!Type:Bank \t\r\nD11/20/2026\r\nT120.50\r\nPExample Refund\r\nLExample Groceries\r\n^\r\nD11/21/2026\r\nT-30.00\r\nPExample Shop\r\nL--Split--\r\nSExample Groceries\r\nEExample portion\r\n$-20.00\r\nSExample Household\r\n$-10.00\r\n^\r\n"
+}

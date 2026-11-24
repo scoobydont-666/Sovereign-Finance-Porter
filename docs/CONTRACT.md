@@ -31,7 +31,7 @@ CommonJS in Node and a global in the browser:
 ```json
 {
   "schemaVersion":"1.0.0",
-  "generator":{"name":"Sovereign Finance Porter","version":"0.1.0-alpha.2"},
+  "generator":{"name":"Sovereign Finance Porter","version":"0.1.0-alpha.3"},
   "currency":"USD",
   "dateOrder":"mdy",
   "sources":[{"id":"source-1","name":"fictional.qif","format":"qif","text":"original source","parseOptions":{"accountName":"Imported account","currency":"USD","dateOrder":"mdy"}}],
@@ -60,8 +60,8 @@ terminators), preserving repeated fields. Unsupported record shape:
 `{sourceId,sourceRecord,line,type,rawFields,reason}`. Issue shape:
 `{severity:'error'|'warning'|'info',code,message,sourceRecord?,line?,transactionId?}`.
 No financial values or source text should appear in uncaught errors or console logs.
-Canonical v1 accepts alpha1 and alpha2 generator versions and revalidates by
-reparsing its retained QIF. Alpha1 upgrades only generator-version metadata;
+Canonical v1 accepts alpha1, alpha2 and alpha3 generator versions and revalidates by
+reparsing its retained QIF. Earlier versions upgrade only generator-version metadata;
 source text, financial records, raw fields, unsupported records and issues must
 reproduce exactly. Unknown versions are rejected. The archive is not an
 arbitrary editable-ledger JSON importer.
@@ -74,6 +74,16 @@ repeated markers, markers after unfinished fields, and other unsupported
 C0/DEL controls throw with Unicode code, one-based line and column. CRLF counts
 as one newline; columns count Unicode code points in the original decoded text.
 Errors never echo source content. Generic normalized-field validation is unchanged.
+
+The sole SOH exception is the exact physical line `T\u0001` under `!Account`.
+It means an unspecified account type in the normalized model, with a fixed
+`ACCOUNT_TYPE_UNSPECIFIED` warning at the account record location. It does not
+map SOH to any named type. A later explicit declaration or selected cash section
+may supply the type through the existing account-attribution rules. Full source
+and account raw fields retain the marker; unsupported `Account` records may
+also retain it. Other fields/sections, whitespace around the marker, additional
+characters and other controls remain rejected. Destination/review CSVs and all
+normalized fields remain free of SOH; native QIF intentionally preserves it.
 
 Only known cash transaction section types Bank, Cash, CCard, Oth A, Oth L are
 normalized. Investments are archived as unsupported until a loss-aware securities

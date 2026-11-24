@@ -1,7 +1,33 @@
 # Verification and publication handoff
 
-Current candidate: **0.1.0-alpha.2 development preview**. The alpha1 evidence
-below is historical; it does not qualify the changed alpha2 code by itself.
+Current candidate: **0.1.0-alpha.3 development preview**. Earlier evidence
+below is historical; it does not qualify a changed candidate by itself.
+
+## Alpha3 account-type correction — 2026-11-24
+
+The actual failing QIF was inspected privately for the reported U+0001 error.
+The entire affected value was an account `T` field inside an AutoSwitch
+catalogue. A separate valid account declaration selected the banking records.
+No meaning for the control-coded type was established or invented. Alpha3
+retains the source/raw field, records `ACCOUNT_TYPE_UNSPECIFIED`, and leaves
+that type unspecified unless explicit QIF structure supplies it.
+
+| Check | Observed result |
+|---|---|
+| Unchanged alpha2 local baseline | 78 tests passed, zero failed/skipped. |
+| New focused regressions before the fix | 8 tests: 2 passed, 6 failed, zero skipped; the failures exercised the SOH source gate and its blocked downstream paths. |
+| Alpha3 local gate, `npm run check` | 90 tests passed, zero failed/skipped; syntax and offline-surface checks passed on Node 24.22.3. |
+| Private original-source validation | The unchanged upload parsed without blocking errors; every banking transaction amount matched an independent Python Decimal check. All six CSV profiles reconciled, both split policies were checked, and JSON reopened successfully. |
+| Private real CLI/ZIP boundary | A temporary Simplifi kit passed independent Python ZIP CRC, exact original-source, CSV row-count and exact-total checks. The input remained unchanged before cleanup. |
+| Privacy | Real source/converted outputs were never added to the repository. Working copies and temporary outputs were removed after validation. Public fixtures are independently fictional. |
+| Archive compatibility | Frozen alpha1 and alpha2 archives reopen with generator metadata upgraded only; altered source, fields, issues and financial records still reject. |
+| Local rendered browser | NOT_RUN: Chromium was blocked before page load by an environment socket restriction. Hosted browser jobs exercise the updated physical-file/download/reopen script. |
+
+Exact candidate reviews and hosted CI results are recorded with
+[issue #2](https://github.com/scoobydont-666/Sovereign-Finance-Porter/issues/2)
+and its linked fix PR. The [handoff](handoffs/qif-u0001.md) lists the acceptance
+checks. Local conversion and a private real-source retry do not establish live
+destination acceptance or production release readiness.
 
 ## Alpha2 QIF text-reader correction — 2026-11-16 UTC
 

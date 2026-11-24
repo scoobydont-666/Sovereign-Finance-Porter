@@ -98,3 +98,68 @@ test('CLI still reads the saved alpha1 archive after a generator upgrade', () =>
   assert.equal(data.unsupportedRecords, 1);
   assert.doesNotMatch(result.stdout + result.stderr, /Fictional Archive|Fictional Fixture|120\.50|30\.00/);
 });
+
+test('CLI reads SOH account metadata in both encodings, exports and reopens the exact preserved source', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'porter-account-type-'));
+  try {
+    const { source } = require('./fixtures/account-type-source.json');
+    const input = path.join(dir, 'fictional-account-type.qif');
+    const bytes = Buffer.from(source, 'utf8');
+    fs.writeFileSync(input, bytes);
+    for (const encoding of ['utf-8', 'windows-1252']) {
+      const result = run([input, '--inspect', '--encoding', encoding]);
+      assert.equal(result.status, 0, result.stderr);
+      const inspection = JSON.parse(result.stdout);
+      assert.equal(inspection.transactions, 2);
+      assert.equal(inspection.unsupportedRecords, 1);
+      assert.equal(inspection.issues.filter(i => i.code === 'ACCOUNT_TYPE_UNSPECIFIED').length, 1);
+      assert.equal(inspection.issues.some(i => i.severity === 'error'), false);
+      assert.doesNotMatch(result.stdout + result.stderr, /Fictional Checking|Fictional Legacy|Example Refund|120\.50|30\.00|fictional-account-type/);
+    }
+    const out = path.join(dir, 'migration.zip');
+    const exported = run([input, '--currency', 'USD', '--target', 'simplifi', '--out', out, '--acknowledge-losses']);
+    assert.equal(exported.status, 0, exported.stderr);
+    // Read the stored ZIP entries produced by the real CLI; CRC/ZIP bounds have
+    // separate writer tests. These assertions cover the end-to-end payload.
+    const zip = fs.readFileSync(out), entries = new Map();
+    let offset = 0;
+    while (zip.readUInt32LE(offset) === 0x04034b50) {
+      assert.equal(zip.readUInt16LE(offset + 8), 0);
+      const size = zip.readUInt32LE(offset + 18), nameLength = zip.readUInt16LE(offset + 26), extraLength = zip.readUInt16LE(offset + 28);
+      const name = zip.subarray(offset + 30, offset + 30 + nameLength).toString('utf8');
+      const start = offset + 30 + nameLength + extraLength;
+      assert.ok(start + size <= zip.length);
+      entries.set(name, zip.subarray(start, start + size).toString('utf8'));
+      offset = start + size;
+    }
+    assert.equal(zip.readUInt32LE(offset), 0x02014b50);
+    assert.equal(entries.get('original-source/source-1.qif'), source);
+    const book = JSON.parse(entries.get('portable-book.json'));
+    assert.equal(book.accounts[1].type, '');
+    assert.equal(book.accounts[1].rawFields[1], 'T\u0001');
+    assert.deepEqual(book.transactions.map(t => t.accountId), ['account-1', 'account-1']);
+    const report = JSON.parse(entries.get('migration-report.json'));
+    assert.equal(report.summary.sourceTransactions, 2);
+    assert.equal(report.summary.exportedRows, 3);
+    assert.equal(report.summary.sourceNet, '90.50');
+    assert.equal(report.summary.exportNet, '90.50');
+    for (const [name, content] of entries) if (name.endsWith('.csv')) assert.doesNotMatch(content, /\u0001/u);
+    const archive = path.join(dir, 'portable-book.json');
+    fs.writeFileSync(archive, entries.get('portable-book.json'));
+    const reopened = run([archive, '--inspect', '--encoding', 'windows-1252']);
+    assert.equal(reopened.status, 0, reopened.stderr);
+    assert.equal(JSON.parse(reopened.stdout).transactions, 2);
+    const regenerated = run([archive, '--currency', 'USD', '--target', 'generic', '--out', path.join(dir, 'reopened.zip'), '--acknowledge-losses']);
+    assert.equal(regenerated.status, 0, regenerated.stderr);
+    assert.deepEqual(fs.readFileSync(input), bytes);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('CLI reads the frozen alpha2 archive including its EOF disclosure', () => {
+  const result = run([path.join(__dirname, 'fixtures/alpha2-archive.json'), '--inspect']);
+  assert.equal(result.status, 0, result.stderr);
+  const inspection = JSON.parse(result.stdout);
+  assert.equal(inspection.transactions, 2);
+  assert.equal(inspection.issues.filter(i => i.code === 'LEGACY_DOS_EOF').length, 1);
+  assert.doesNotMatch(result.stdout + result.stderr, /Fictional Archive|Fictional Fixture|120\.50|30\.00/);
+});

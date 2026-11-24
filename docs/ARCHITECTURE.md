@@ -67,8 +67,8 @@ Validated numeric amount fields retain their original signs.
 
 ## Reusable archive contract
 
-`schemaVersion: 1.0.0` archives accept generator `0.1.0-alpha.1` and
-`0.1.0-alpha.2` in this preview. Alpha1 archives receive only a generator-version
+`schemaVersion: 1.0.0` archives accept generator `0.1.0-alpha.1`,
+`0.1.0-alpha.2` and `0.1.0-alpha.3` in this preview. Earlier archives receive only a generator-version
 metadata upgrade. `sources[0].parseOptions` records the fallback account name, date order
 and USD currency. Reopening validates references, types, money, split balances,
 IDs and source coverage, then reparses the original QIF and compares normalized
@@ -83,6 +83,16 @@ uses a view without that trailer; the original source remains unchanged and a
 unsupported C0/DEL controls are rejected with a code and position. Normalized
 fields keep strict control validation. Resource limits apply to the full source,
 including its trailer.
+
+An exact physical line `T\u0001` is accepted only in a genuine `!Account`
+section. The marker's meaning is unknown, so its normalized account type is
+unspecified until an explicit account declaration or selected cash section
+supplies a type. `ACCOUNT_TYPE_UNSPECIFIED` warns without echoing account values.
+The original source and account raw fields keep the marker. Malformed account
+records can retain it as unsupported evidence while continuing to block CSV.
+No other raw-field context or normalized text admits SOH. The source gate scans
+every control, including those following an accepted marker. Archive reparse
+comparison still rejects changes to source, raw evidence, type or warning.
 
 Future versions must implement an explicit archive upgrade before changing
 parser semantics, preserve unknown fields and offer a rollback/preservation
